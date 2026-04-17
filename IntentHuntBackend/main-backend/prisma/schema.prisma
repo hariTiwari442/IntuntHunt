@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Profiles ─────────────────────────────────────────────
+// Extends Supabase auth.users with app-specific data.
+// The id comes from Supabase Auth (auth.users.id).
+model Profile {
+  id            String   @id @default(uuid()) @db.Uuid
+  email         String   @unique
+  name          String?
+  avatarUrl     String?  @map("avatar_url")
+  plan          String   @default("starter")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  crawlJobs     CrawlJob[]
+  products      Product[]
+
+  @@map("profiles")
+}
+
+// ── Products ──────────────────────────────────────────────
+// Stores the keyword generation result for each product a user tracks.
+model Product {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id") @db.Uuid
+  name         String   @default("")
+  description  String
+  intelligence Json     // Full OpenAI product intelligence response
+  queries      Json     // { redditGlobal, redditSubreddit, hackernews }
+  subreddits   String[]
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user         Profile    @relation(fields: [userId], references: [id])
+  crawlJobs    CrawlJob[]
+
+  @@index([userId])
+  @@map("products")
+}
+
+// ── Crawl Jobs (reference for gateway) ───────────────────
+model CrawlJob {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id") @db.Uuid
+  productId     String?  @map("product_id")
+  keywords      String[]
+  sources       SourceType[]
+  status        JobStatus @default(pending)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+  errorMessage  String?   @map("error_message")
+  metadata      Json      @default("{}")
+
+  user          Profile   @relation(fields: [userId], references: [id])
+  product       Product?  @relation(fields: [productId], references: [id])
+
+  @@index([userId])
+  @@index([productId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("crawl_jobs")
+}
+
+enum JobStatus {
+  pending
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum SourceType {
+  reddit
+  hackernews
+  linkedin
+}

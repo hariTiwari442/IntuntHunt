@@ -1,0 +1,63 @@
+{
+  "hits": [
+    {
+      "objectID": "mock_hn_1",
+      "title": "Show HN: We built an AI-powered cold email tool for startups",
+      "story_text": "After struggling with existing tools that were either too expensive or too complex, we built our own. It uses AI to personalize each email based on the recipient's LinkedIn profile and company data.",
+      "author": "hn_builder",
+      "points": 87,
+      "num_comments": 34,
+      "url": "https://example.com/cold-email-tool",
+      "created_at": "2026-03-30T10:00:00.000Z",
+      "_tags": ["story", "show_hn"]
+    },
+    {
+      "objectID": "mock_hn_2",
+      "title": "The death of cold email? New Gmail/Outlook spam filters are brutal",
+      "story_text": null,
+      "author": "email_nerd",
+      "points": 234,
+      "num_comments": 156,
+      "url": "https://example.com/cold-email-dying",
+      "created_at": "2026-03-29T14:30:00.000Z",
+      "_tags": ["story"]
+    },
+    {
+      "objectID": "mock_hn_3",
+      "title": "Ask HN: What sales tools does your startup use?",
+      "story_text": "We're a 10-person B2B startup and currently using a messy combination of spreadsheets and free tools. Looking to invest in proper sales infrastructure. What's your stack?",
+      "author": "startup_cto",
+      "points": 45,
+      "num_comments": 67,
+      "url": null,
+      "created_at": "2026-03-28T09:15:00.000Z",
+      "_tags": ["story", "ask_hn"]
+    },
+    {
+      "objectID": "mock_hn_4",
+      "title": "Why I switched from Salesforce to a $30/mo CRM",
+      "story_text": "After 3 years of paying $150/user/month for Salesforce, I realized we were using maybe 10% of its features. Here's what happened when we switched to a simpler alternative.",
+      "author": "lean_founder",
+      "points": 178,
+      "num_comments": 89,
+      "url": "https://example.com/salesforce-switch",
+      "created_at": "2026-03-27T16:45:00.000Z",
+      "_tags": ["story"]
+    },
+    {
+      "objectID": "mock_hn_5",
+      "title": "Building an outbound sales engine from scratch",
+      "story_text": "Technical deep-dive into how we built our outbound pipeline. Covers email infrastructure, warming, personalization at scale, and measuring deliverability.",
+      "author": "sales_engineer",
+      "points": 112,
+      "num_comments": 43,
+      "url": "https://example.com/outbound-engine",
+      "created_at": "2026-03-26T11:20:00.000Z",
+      "_tags": ["story"]
+    }
+  ],
+  "nbHits": 5,
+  "page": 0,
+  "nbPages": 1,
+  "hitsPerPage": 25
+}

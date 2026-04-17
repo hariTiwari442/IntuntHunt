@@ -1,0 +1,20 @@
+{
+  "productName": "MockProduct",
+  "category": "cold email outreach tool",
+  "problem": "Sales teams waste hours manually personalizing and sending cold emails with poor deliverability",
+  "audience": "B2B sales teams, SDRs, and founders at startups and SMBs doing outbound sales",
+  "pains": [
+    "Low email deliverability and landing in spam",
+    "Time-consuming manual personalization",
+    "Juggling multiple tools for prospecting and outreach",
+    "Expensive enterprise tools with features they don't need",
+    "Inconsistent follow-up sequences"
+  ],
+  "alternatives": ["Apollo", "Lemlist", "Instantly", "Smartlead", "Woodpecker"],
+  "triggers": [
+    "Current tool raised prices significantly",
+    "Email deliverability suddenly dropped",
+    "Hiring new SDRs and need to scale outreach",
+    "Switching from manual to automated outbound"
+  ]
+}

@@ -1,0 +1,147 @@
+[
+  {
+    "activity_id": "mock_li_1001",
+    "post_url": "https://www.linkedin.com/posts/mock-user-1_sales-outreach-activity-mock1",
+    "text": "We've been struggling to find the right cold email tool for our team. Tried Lemlist, Apollo, and Instantly. Each has pros and cons but none feels like THE one. Anyone have recommendations for a tool that balances simplicity with powerful personalization?",
+    "full_urn": "urn:li:ugcPost:mock1001",
+    "author": {
+      "name": "Sarah Mitchell",
+      "headline": "VP Sales @ TechCorp",
+      "profile_id": "100001",
+      "profile_url": "https://www.linkedin.com/in/sarah-mitchell-mock",
+      "image_url": "https://example.com/avatar1.jpg"
+    },
+    "stats": {
+      "total_reactions": 45,
+      "comments": 23,
+      "shares": 5,
+      "reactions": [{ "type": "LIKE", "count": 38 }, { "type": "EMPATHY", "count": 7 }]
+    },
+    "posted_at": {
+      "display_text": "2d",
+      "date": "2026-03-30 09:15:00",
+      "timestamp": 1774854900000,
+      "edited": false
+    },
+    "hashtags": ["sales", "outreach", "coldemail"],
+    "content": { "type": "text" },
+    "is_reshare": false,
+    "search_input": "cold email outreach tool"
+  },
+  {
+    "activity_id": "mock_li_1002",
+    "post_url": "https://www.linkedin.com/posts/mock-user-2_b2b-leadgen-activity-mock2",
+    "text": "Hot take: Most B2B companies are wasting money on expensive sales tools.\n\nYou don't need a $200/seat platform to do outbound well.\n\nWhat you actually need:\n1. A clean prospect list\n2. Personalized messaging\n3. Consistent follow-ups\n4. Good deliverability\n\nThe tools should serve the process, not the other way around.\n\nWhat's your lean sales stack? Drop it below.",
+    "full_urn": "urn:li:ugcPost:mock1002",
+    "author": {
+      "name": "James Rodriguez",
+      "headline": "Founder @ LeadFlow | Helping startups scale outbound",
+      "profile_id": "100002",
+      "profile_url": "https://www.linkedin.com/in/james-rodriguez-mock",
+      "image_url": "https://example.com/avatar2.jpg"
+    },
+    "stats": {
+      "total_reactions": 312,
+      "comments": 87,
+      "shares": 24,
+      "reactions": [{ "type": "LIKE", "count": 245 }, { "type": "APPRECIATION", "count": 42 }, { "type": "EMPATHY", "count": 25 }]
+    },
+    "posted_at": {
+      "display_text": "1d",
+      "date": "2026-03-31 14:30:00",
+      "timestamp": 1774960200000,
+      "edited": true
+    },
+    "hashtags": ["b2b", "leadgen", "salestools"],
+    "content": { "type": "text" },
+    "is_reshare": false,
+    "search_input": "cold email outreach tool"
+  },
+  {
+    "activity_id": "mock_li_1003",
+    "post_url": "https://www.linkedin.com/posts/mock-user-3_switched-from-apollo-activity-mock3",
+    "text": "Just switched from Apollo to a new outreach platform and our reply rates jumped from 3% to 11% in the first week.\n\nThe difference? Better email warming and AI-powered personalization that actually sounds human.\n\nIf you're still getting low response rates, it might not be your copy - it might be your tool.",
+    "full_urn": "urn:li:ugcPost:mock1003",
+    "author": {
+      "name": "Priya Sharma",
+      "headline": "Head of Growth @ ScaleUp.io",
+      "profile_id": "100003",
+      "profile_url": "https://www.linkedin.com/in/priya-sharma-mock",
+      "image_url": "https://example.com/avatar3.jpg"
+    },
+    "stats": {
+      "total_reactions": 89,
+      "comments": 12,
+      "shares": 8,
+      "reactions": [{ "type": "LIKE", "count": 72 }, { "type": "APPRECIATION", "count": 17 }]
+    },
+    "posted_at": {
+      "display_text": "3d",
+      "date": "2026-03-29 08:00:00",
+      "timestamp": 1774764000000,
+      "edited": false
+    },
+    "hashtags": ["outreach", "salestech"],
+    "content": { "type": "text" },
+    "is_reshare": false,
+    "search_input": "switched from apollo"
+  },
+  {
+    "activity_id": "mock_li_1004",
+    "post_url": "https://www.linkedin.com/posts/mock-user-4_hiring-sdr-activity-mock4",
+    "text": "We're hiring 3 SDRs but honestly considering just investing in better automation instead.\n\nThe math: 3 SDRs = $180k/year. A good AI outreach tool = $2k/year and it works 24/7.\n\nAm I crazy for thinking this way? What's your experience with AI-powered outbound vs human SDRs?",
+    "full_urn": "urn:li:ugcPost:mock1004",
+    "author": {
+      "name": "David Chen",
+      "headline": "CEO @ NovaTech Solutions",
+      "profile_id": "100004",
+      "profile_url": "https://www.linkedin.com/in/david-chen-mock",
+      "image_url": "https://example.com/avatar4.jpg"
+    },
+    "stats": {
+      "total_reactions": 567,
+      "comments": 134,
+      "shares": 41,
+      "reactions": [{ "type": "LIKE", "count": 401 }, { "type": "EMPATHY", "count": 89 }, { "type": "APPRECIATION", "count": 77 }]
+    },
+    "posted_at": {
+      "display_text": "5h",
+      "date": "2026-04-01 06:00:00",
+      "timestamp": 1775016000000,
+      "edited": false
+    },
+    "hashtags": ["hiring", "sdr", "automation", "ai"],
+    "content": { "type": "text" },
+    "is_reshare": false,
+    "search_input": "need email outreach solution"
+  },
+  {
+    "activity_id": "mock_li_1005",
+    "post_url": "https://www.linkedin.com/posts/mock-user-5_email-deliverability-activity-mock5",
+    "text": "PSA for anyone doing cold outreach:\n\nGoogle just updated their sender guidelines AGAIN. If you're sending more than 500 emails/day from a single domain, you need to pay attention.\n\nKey changes:\n- Stricter DMARC enforcement\n- New engagement-based filtering\n- Reply rate now affects sender reputation\n\nTools with built-in warming and rotation are no longer optional - they're essential.",
+    "full_urn": "urn:li:ugcPost:mock1005",
+    "author": {
+      "name": "Alex Thompson",
+      "headline": "Email Deliverability Consultant",
+      "profile_id": "100005",
+      "profile_url": "https://www.linkedin.com/in/alex-thompson-mock",
+      "image_url": "https://example.com/avatar5.jpg"
+    },
+    "stats": {
+      "total_reactions": 203,
+      "comments": 45,
+      "shares": 67,
+      "reactions": [{ "type": "LIKE", "count": 156 }, { "type": "APPRECIATION", "count": 47 }]
+    },
+    "posted_at": {
+      "display_text": "12h",
+      "date": "2026-03-31 22:00:00",
+      "timestamp": 1774987200000,
+      "edited": false
+    },
+    "hashtags": ["email", "deliverability", "coldemail"],
+    "content": { "type": "text" },
+    "is_reshare": false,
+    "search_input": "need email outreach solution"
+  }
+]
