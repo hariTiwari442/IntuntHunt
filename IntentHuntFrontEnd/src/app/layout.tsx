@@ -6,9 +6,9 @@ import { Providers } from "@/components/providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "LeadPulse - Find customers who are already looking",
+  title: "LeadPulse - Find buyers across Reddit, LinkedIn & Twitter",
   description:
-    "LeadPulse scans Reddit and Hacker News to find high-intent leads, scores them by purchase intent, and helps you craft the perfect reply.",
+    "LeadPulse scans Reddit, LinkedIn, and Twitter for posts with buying intent, scores them by purchase signal, and helps you craft the perfect reply.",
 };
 
 export default function RootLayout({
@@ -17,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body className={`${inter.className} bg-bg-primary text-text-primary min-h-screen`}>
         <Providers>{children}</Providers>
       </body>

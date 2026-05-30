@@ -13,11 +13,11 @@ export function Badge({ children, variant = "default", className }: BadgeProps) 
       className={cn(
         "inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold",
         {
-          "bg-white/5 text-white/60": variant === "default",
-          "bg-accent/15 text-accent": variant === "accent",
-          "bg-red-500/20 text-red-400": variant === "hot",
-          "bg-green-500/20 text-green-400": variant === "good",
-          "bg-amber-500/20 text-amber-400": variant === "watch",
+          "bg-bg-muted text-text-secondary": variant === "default",
+          "bg-accent-soft text-accent": variant === "accent",
+          "bg-red-100 text-red-700": variant === "hot",
+          "bg-green-100 text-green-700": variant === "good",
+          "bg-amber-100 text-amber-700": variant === "watch",
         },
         className
       )}

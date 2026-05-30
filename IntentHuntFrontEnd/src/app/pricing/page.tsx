@@ -17,7 +17,7 @@ const plans = [
     name: "Pro",
     price: 29,
     annual: 24,
-    features: ["5 products", "20 crawls/month", "Reddit + Hacker News", "1,000 posts stored", "Unlimited AI replies"],
+    features: ["5 products", "20 crawls/month", "Reddit + LinkedIn + Twitter", "1,000 posts stored", "Unlimited AI replies"],
     popular: true,
   },
   {
@@ -39,18 +39,18 @@ export default function PricingPage() {
       </div>
 
       {/* Header */}
-      <header className="relative z-10 border-b border-white/5">
+      <header className="relative z-10 border-b border-border-default">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors"
           >
             <ArrowLeft size={20} />
             Back
           </Link>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-[#4df7c3] flex items-center justify-center">
-              <Zap className="w-4 h-4 text-black" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-[#22d3ee] flex items-center justify-center">
+              <Zap className="w-4 h-4 text-white" />
             </div>
             <span className="font-bold">LeadPulse</span>
           </div>
@@ -66,19 +66,19 @@ export default function PricingPage() {
           <h1 className="text-4xl font-bold mb-4">
             Simple, transparent <span className="gradient-text">pricing</span>
           </h1>
-          <p className="text-white/50">Start free, upgrade when you&apos;re ready.</p>
+          <p className="text-text-secondary">Start free, upgrade when you&apos;re ready.</p>
 
           <div className="flex items-center justify-center gap-4 mt-8">
-            <span className={`text-sm ${!isAnnual ? "text-white" : "text-white/50"}`}>Monthly</span>
+            <span className={`text-sm ${!isAnnual ? "text-text-primary font-medium" : "text-text-secondary"}`}>Monthly</span>
             <button
               onClick={() => setIsAnnual(!isAnnual)}
-              className={`relative w-12 h-6 rounded-full transition-colors ${isAnnual ? "bg-accent" : "bg-white/20"}`}
+              className={`relative w-12 h-6 rounded-full transition-colors ${isAnnual ? "bg-accent" : "bg-bg-muted border border-border-default"}`}
             >
               <div
-                className={`absolute top-1 w-4 h-4 rounded-full bg-black transition-transform ${isAnnual ? "translate-x-7" : "translate-x-1"}`}
+                className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isAnnual ? "translate-x-7" : "translate-x-1"}`}
               />
             </button>
-            <span className={`text-sm ${isAnnual ? "text-white" : "text-white/50"}`}>
+            <span className={`text-sm ${isAnnual ? "text-text-primary font-medium" : "text-text-secondary"}`}>
               Annual <span className="text-accent text-xs ml-1">Save 17%</span>
             </span>
           </div>
@@ -90,12 +90,12 @@ export default function PricingPage() {
               key={plan.name}
               className={`relative rounded-2xl p-6 ${
                 plan.popular
-                  ? "bg-accent/10 border-2 border-accent/30 md:-mt-4 md:pb-10"
-                  : "glass"
+                  ? "bg-accent-soft border-2 border-accent md:-mt-4 md:pb-10 shadow-lg"
+                  : "card"
               }`}
             >
               {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-accent text-black text-xs font-bold">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-accent text-white text-xs font-bold">
                   POPULAR
                 </div>
               )}
@@ -104,7 +104,7 @@ export default function PricingPage() {
                 <span className="text-3xl font-bold">
                   ${isAnnual ? plan.annual : plan.price}
                 </span>
-                {plan.price > 0 && <span className="text-white/50">/mo</span>}
+                {plan.price > 0 && <span className="text-text-secondary">/mo</span>}
               </div>
               <Link href="/auth/signup">
                 <Button
@@ -118,7 +118,7 @@ export default function PricingPage() {
                 {plan.features.map((feature, i) => (
                   <li key={i} className="flex items-center gap-2">
                     <Check size={16} className="text-accent shrink-0" />
-                    <span className="text-white/70">{feature}</span>
+                    <span className="text-text-secondary">{feature}</span>
                   </li>
                 ))}
               </ul>

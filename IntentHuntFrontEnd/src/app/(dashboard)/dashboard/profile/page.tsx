@@ -42,7 +42,7 @@ export default function ProfilePage() {
         <Card className="!p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-accent-soft border border-accent/20 flex items-center justify-center">
                 <Crown className="w-6 h-6 text-accent" />
               </div>
               <div>
@@ -50,7 +50,7 @@ export default function ProfilePage() {
                   {features.label} Plan
                   <Badge variant="accent">{features.name}</Badge>
                 </h3>
-                <p className="text-sm text-white/40 mt-0.5">
+                <p className="text-sm text-text-secondary mt-0.5">
                   {features.jobsPerMonth === null
                     ? "Unlimited jobs"
                     : `${features.jobsPerMonth} jobs/month`}{" "}
@@ -69,17 +69,17 @@ export default function ProfilePage() {
         {/* Profile Form */}
         <Card className="!p-6">
           <h3 className="font-semibold mb-6 flex items-center gap-2">
-            <User size={18} className="text-white/40" />
+            <User size={18} className="text-text-secondary" />
             Personal Info
           </h3>
           <form onSubmit={handleSave} className="space-y-5">
             <div>
               <label className="block text-sm font-medium mb-2 flex items-center gap-2">
-                <Mail size={14} className="text-white/40" />
+                <Mail size={14} className="text-text-secondary" />
                 Email
               </label>
               <Input value={user?.email || ""} disabled className="!opacity-50" />
-              <p className="text-xs text-white/30 mt-1">Email cannot be changed</p>
+              <p className="text-xs text-text-tertiary mt-1">Email cannot be changed</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">Display Name</label>
@@ -100,10 +100,10 @@ export default function ProfilePage() {
         {/* Security */}
         <Card className="!p-6">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Shield size={18} className="text-white/40" />
+            <Shield size={18} className="text-text-secondary" />
             Security
           </h3>
-          <p className="text-sm text-white/50 mb-4">
+          <p className="text-sm text-text-secondary mb-4">
             Manage your password and account security.
           </p>
           <Button variant="secondary" size="sm">

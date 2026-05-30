@@ -42,12 +42,12 @@ function ResetPasswordContent() {
     return (
       <AuthLayout title="Password reset!" subtitle="Your password has been updated">
         <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-16 h-16 rounded-2xl bg-green-50 border border-green-200 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <p className="text-white/50 text-sm">Redirecting to login...</p>
+          <p className="text-text-secondary text-sm">Redirecting to login...</p>
         </div>
       </AuthLayout>
     );
@@ -80,7 +80,7 @@ function ResetPasswordContent() {
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
             {error}
           </div>
         )}
@@ -90,7 +90,7 @@ function ResetPasswordContent() {
         </Button>
       </form>
 
-      <p className="text-sm text-white/40 text-center mt-6">
+      <p className="text-sm text-text-tertiary text-center mt-6">
         <Link href="/auth/login" className="text-accent hover:text-accent-hover transition-colors">
           Back to login
         </Link>

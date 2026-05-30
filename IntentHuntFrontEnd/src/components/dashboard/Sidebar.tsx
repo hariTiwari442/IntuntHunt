@@ -43,8 +43,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-border-default">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-[#4df7c3] flex items-center justify-center shrink-0">
-          <Zap className="w-5 h-5 text-black" />
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-[#22d3ee] flex items-center justify-center shrink-0">
+          <Zap className="w-5 h-5 text-white" />
         </div>
         {!collapsed && <span className="text-lg font-bold">LeadPulse</span>}
       </div>
@@ -62,8 +62,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                 isActive
-                  ? "bg-accent/10 text-accent"
-                  : "text-white/50 hover:text-white hover:bg-white/5"
+                  ? "bg-accent-soft text-accent"
+                  : "text-text-secondary hover:text-text-primary hover:bg-bg-card-hover"
               )}
             >
               <item.icon size={20} className="shrink-0" />
@@ -75,15 +75,15 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Plan badge */}
       {!collapsed && (
-        <div className="mx-3 mb-3 p-3 rounded-xl border border-border-default bg-white/[0.02]">
+        <div className="mx-3 mb-3 p-3 rounded-xl border border-border-default bg-bg-muted">
           <div className="flex items-center gap-2 mb-2">
             <Crown size={14} className="text-accent" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
+            <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
               {features.label} Plan
             </span>
           </div>
           {features.jobsPerMonth !== null && (
-            <p className="text-xs text-white/35">{features.jobsPerMonth} products/month</p>
+            <p className="text-xs text-text-tertiary">{features.jobsPerMonth} products/month</p>
           )}
           <Link
             href="/pricing"
@@ -98,25 +98,25 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <div className="border-t border-border-default p-3 space-y-2">
         {!collapsed && user && (
           <div className="flex items-center gap-3 px-2 py-1">
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-bold">
+            <div className="w-8 h-8 rounded-full bg-accent-soft text-accent flex items-center justify-center text-sm font-bold">
               {(user.name || user.email)[0].toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium truncate">{user.name || "User"}</p>
-              <p className="text-xs text-white/40 truncate">{user.email}</p>
+              <p className="text-xs text-text-tertiary truncate">{user.email}</p>
             </div>
           </div>
         )}
         <div className="flex items-center gap-1">
           <button
             onClick={onToggle}
-            className="flex items-center justify-center w-full p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors"
+            className="flex items-center justify-center w-full p-2 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-bg-card-hover transition-colors"
           >
             {collapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
           </button>
           <button
             onClick={logout}
-            className="flex items-center justify-center p-2 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            className="flex items-center justify-center p-2 rounded-lg text-text-tertiary hover:text-red-600 hover:bg-red-50 transition-colors"
             title="Logout"
           >
             <LogOut size={18} />

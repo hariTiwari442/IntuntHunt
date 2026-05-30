@@ -63,7 +63,7 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
             {error}
           </div>
         )}
@@ -73,7 +73,7 @@ export default function LoginPage() {
         </Button>
       </form>
 
-      <p className="text-sm text-white/40 text-center mt-6">
+      <p className="text-sm text-text-tertiary text-center mt-6">
         Don&apos;t have an account?{" "}
         <Link href="/auth/signup" className="text-accent hover:text-accent-hover transition-colors">
           Sign up

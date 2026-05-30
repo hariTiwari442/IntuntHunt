@@ -36,9 +36,9 @@ export function SocialButtons() {
       </div>
 
       <div className="flex items-center gap-4 mb-6">
-        <div className="flex-1 h-px bg-white/10" />
-        <span className="text-xs text-white/30">or continue with email</span>
-        <div className="flex-1 h-px bg-white/10" />
+        <div className="flex-1 h-px bg-border-default" />
+        <span className="text-xs text-text-tertiary">or continue with email</span>
+        <div className="flex-1 h-px bg-border-default" />
       </div>
     </>
   );

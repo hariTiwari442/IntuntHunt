@@ -47,8 +47,8 @@ function VerifyContent() {
           <Mail className="w-8 h-8 text-accent" />
         </div>
         {email && (
-          <p className="text-sm text-white/50">
-            Code sent to <span className="text-white">{email}</span>
+          <p className="text-sm text-text-secondary">
+            Code sent to <span className="text-text-primary">{email}</span>
           </p>
         )}
       </div>
@@ -56,7 +56,7 @@ function VerifyContent() {
       <OtpInput onComplete={handleComplete} />
 
       {error && (
-        <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+        <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm text-center">
           {error}
         </div>
       )}

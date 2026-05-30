@@ -37,8 +37,8 @@ export default function ForgotPasswordPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
-          <p className="text-white/50 text-sm mb-6">
-            If an account exists for <span className="text-white">{email}</span>, you&apos;ll receive a reset link shortly.
+          <p className="text-text-secondary text-sm mb-6">
+            If an account exists for <span className="text-text-primary">{email}</span>, you&apos;ll receive a reset link shortly.
           </p>
           <Link href="/auth/login">
             <Button variant="secondary">Back to login</Button>
@@ -63,7 +63,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
             {error}
           </div>
         )}
@@ -73,7 +73,7 @@ export default function ForgotPasswordPage() {
         </Button>
       </form>
 
-      <p className="text-sm text-white/40 text-center mt-6">
+      <p className="text-sm text-text-tertiary text-center mt-6">
         <Link href="/auth/login" className="text-accent hover:text-accent-hover transition-colors">
           Back to login
         </Link>

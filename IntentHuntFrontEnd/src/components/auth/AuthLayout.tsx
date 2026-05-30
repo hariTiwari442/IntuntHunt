@@ -14,14 +14,14 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
   return (
     <div className="min-h-screen flex">
       {/* Left panel - branding */}
-      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-bg-secondary to-bg-primary p-12 flex-col justify-between relative overflow-hidden">
+      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-accent-soft to-bg-primary p-12 flex-col justify-between relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-accent/10 rounded-full blur-[150px]" />
         </div>
 
         <Link
           href="/"
-          className="relative z-10 flex items-center gap-2 text-white/60 hover:text-white transition-colors w-fit"
+          className="relative z-10 flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors w-fit"
         >
           <ArrowLeft size={20} />
           Back to home
@@ -29,20 +29,20 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
 
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent to-[#4df7c3] flex items-center justify-center">
-              <Zap className="w-6 h-6 text-black" />
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent to-[#22d3ee] flex items-center justify-center">
+              <Zap className="w-6 h-6 text-white" />
             </div>
             <span className="text-2xl font-bold">LeadPulse</span>
           </div>
           <h2 className="text-3xl font-bold mb-4">
             Find customers who are already looking for you
           </h2>
-          <p className="text-white/50">
-            Join 2,000+ founders discovering high-intent leads on Reddit and Hacker News.
+          <p className="text-text-secondary">
+            Join 2,000+ founders discovering high-intent leads on Reddit, LinkedIn and Twitter.
           </p>
         </div>
 
-        <div className="relative z-10 text-sm text-white/30">
+        <div className="relative z-10 text-sm text-text-tertiary">
           &copy; 2026 LeadPulse
         </div>
       </div>
@@ -52,14 +52,14 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
         <div className="w-full max-w-sm">
           <Link
             href="/"
-            className="lg:hidden flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-8"
+            className="lg:hidden flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors mb-8"
           >
             <ArrowLeft size={20} />
             Back
           </Link>
 
           <h1 className="text-2xl font-bold mb-2">{title}</h1>
-          <p className="text-white/50 mb-8">{subtitle}</p>
+          <p className="text-text-secondary mb-8">{subtitle}</p>
 
           {children}
         </div>
