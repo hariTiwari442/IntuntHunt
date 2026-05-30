@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Fragment } from "react";
 import { Button } from "@/components/ui/button";
-import { Zap, ArrowRight, Play, Search, BarChart3, MessageSquare, Target, TrendingUp, Check, X } from "lucide-react";
+import { Zap, ArrowRight, Play, Search, BarChart3, MessageSquare, Target, TrendingUp, Check, X, Send, Inbox, Bell } from "lucide-react";
 
 const previewPosts = [
   {
@@ -94,25 +94,22 @@ const features = [
 
 const howItWorks = [
   {
-    step: "01",
-    title: "Describe What You Sell",
-    blurb:
-      "Add your product, target customer, and a few plain-English pain points. LeadPulse turns that into search angles real buyers actually use.",
-    detail: "No complex setup. Just tell the app what problem you solve.",
+    step:  "Step 1",
+    title: "Tell us what you sell",
+    blurb: "Add your product, target customer, and the problems you solve. LeadPulse turns that into search angles real buyers use.",
+    icon:  MessageSquare,
   },
   {
-    step: "02",
-    title: "Catch Intent In The Wild",
-    blurb:
-      "We scan Reddit, Twitter & LinkedIn for posts where people are actively asking, comparing, or struggling with the problem your product solves.",
-    detail: "The strongest conversations are scored and surfaced first.",
+    step:  "Step 2",
+    title: "We scan in real-time",
+    blurb: "Reddit, LinkedIn & Twitter get scanned for posts where people are actively asking, comparing, or struggling.",
+    icon:  Search,
   },
   {
-    step: "03",
-    title: "Reply Before The Moment Dies",
-    blurb:
-      "Get a ranked stream of opportunities with AI-assisted replies that help you sound useful, relevant, and early to the conversation.",
-    detail: "Less searching. Better timing. More qualified leads.",
+    step:  "Step 3",
+    title: "Reply in seconds",
+    blurb: "Get a ranked stream of opportunities with AI-personalized DMs and comments — context-aware, ready to ship.",
+    icon:  Send,
   },
 ];
 
@@ -306,6 +303,120 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Get the hottest leads in seconds (split: copy left, inbox mockup right) */}
+      <section className="relative z-10 py-20 border-t border-border-default">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-12 items-center">
+            {/* Copy */}
+            <div>
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border-default bg-bg-secondary text-xs font-semibold text-text-secondary mb-5">
+                <Bell size={13} className="text-accent" />
+                Get leads
+              </span>
+              <h2 className="text-4xl md:text-5xl font-bold leading-tight mb-5 text-text-primary">
+                Get the hottest leads in <span className="gradient-text">seconds</span>
+              </h2>
+              <p className="text-lg text-text-secondary leading-relaxed mb-6">
+                LeadPulse uses AI to understand each post and the person behind it. You get a ranked inbox — newest, hottest, and ready-to-reply leads at the top.
+              </p>
+              <ul className="space-y-3 text-sm">
+                {[
+                  "Live realtime inbox — new leads land in seconds",
+                  "Filter by status, platform, and relevancy",
+                  "Full control over how AI scores and writes replies",
+                ].map((line) => (
+                  <li key={line} className="flex items-start gap-2.5">
+                    <Check size={16} strokeWidth={3} className="text-accent shrink-0 mt-0.5" />
+                    <span className="text-text-secondary">{line}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Inbox mockup */}
+            <div className="rounded-2xl border border-border-default bg-bg-secondary shadow-xl overflow-hidden">
+              <div className="grid grid-cols-[160px_1fr]">
+                {/* Sidebar */}
+                <div className="bg-bg-primary border-r border-border-default p-3 space-y-4">
+                  {/* Avatar */}
+                  <div className="flex items-center gap-2 px-1.5 py-1">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-accent to-cyan-400 flex items-center justify-center text-white text-xs font-bold">
+                      H
+                    </div>
+                  </div>
+
+                  {/* Inbox / Completed */}
+                  <div className="space-y-0.5">
+                    <button className="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-medium bg-accent-soft text-accent">
+                      <span className="flex items-center gap-1.5">
+                        <Inbox size={12} />
+                        Inbox
+                      </span>
+                      <span className="text-[10px]">7</span>
+                    </button>
+                    <button className="w-full flex items-center px-2 py-1.5 rounded-md text-xs text-text-tertiary hover:bg-bg-card-hover">
+                      <Check size={12} className="mr-1.5" strokeWidth={2.5} />
+                      Completed
+                    </button>
+                  </div>
+
+                  {/* Filter by subreddit */}
+                  <div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider text-text-tertiary mb-1.5 px-2">
+                      Filter by subreddit
+                    </div>
+                    <div className="space-y-0.5">
+                      {[
+                        { sub: "r/Entrepreneur", count: 1 },
+                        { sub: "r/Marketing",    count: 4 },
+                        { sub: "r/SaaS",         count: 2 },
+                        { sub: "r/Growth",       count: 0 },
+                      ].map((s) => (
+                        <div key={s.sub} className="flex items-center justify-between px-2 py-1.5 text-xs text-text-secondary">
+                          <span>{s.sub}</span>
+                          {s.count > 0 && (
+                            <span className="text-[10px] tabular-nums bg-orange-100 text-orange-700 px-1.5 rounded-full font-semibold">
+                              {s.count}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lead list */}
+                <div>
+                  <div className="px-5 py-4 border-b border-border-default">
+                    <h3 className="font-bold text-text-primary">New leads</h3>
+                  </div>
+                  <div className="divide-y divide-border-default">
+                    {[
+                      { user: "u/DudeApric",   when: "4 hr ago",     title: "What are the best no-code website builders?",   color: "from-orange-400 to-red-400" },
+                      { user: "u/someone123",  when: "1 day ago",    title: "This is my portfolio website. Roast my website!", color: "from-purple-400 to-pink-400" },
+                      { user: "u/johndoe",     when: "2 days ago",   title: "Seeking feedback on website layout.",             color: "from-blue-400 to-cyan-400" },
+                      { user: "u/techbaby",    when: "1 week ago",   title: "Any AI website builders that are free?",          color: "from-emerald-400 to-teal-400" },
+                      { user: "u/creativeMind",when: "3 weeks ago",  title: "Best Webflow alternatives?",                      color: "from-amber-400 to-orange-400" },
+                    ].map((row, i) => (
+                      <div key={i} className="px-5 py-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${row.color}`} />
+                            <span className="text-[11px] font-medium text-text-secondary">{row.user}</span>
+                          </div>
+                          <span className="text-[10px] text-text-tertiary">{row.when}</span>
+                        </div>
+                        <div className="text-sm text-text-primary leading-snug">{row.title}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Before / After reply comparison */}
       <section className="relative z-10 py-20 border-t border-border-default bg-bg-secondary">
         <div className="max-w-5xl mx-auto px-6">
@@ -428,50 +539,48 @@ export default function LandingPage() {
           <div className="absolute right-[10%] bottom-10 h-64 w-64 rounded-full bg-cyan-400/[0.05] blur-[120px]" />
         </div>
         <div className="relative max-w-6xl mx-auto px-6">
-          <div className="max-w-3xl mb-14">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border-default bg-bg-muted px-4 py-2 text-xs uppercase tracking-[0.22em] text-text-secondary mb-5">
-              How it works
-            </div>
+          <div className="text-center max-w-3xl mx-auto mb-14">
             <h2 className="text-4xl md:text-5xl font-bold leading-tight mb-5">
               From vague demand to{" "}
               <span className="gradient-text">actionable buyer signals</span>
             </h2>
-            <p className="text-text-secondary text-base leading-7 max-w-2xl">
-              Most teams waste hours digging through communities manually. LeadPulse turns that chaos into a simple workflow you can run every day.
+            <p className="text-text-secondary text-base leading-7 mx-auto">
+              Most teams waste hours digging through communities manually. LeadPulse turns that chaos into a simple 3-step workflow.
             </p>
           </div>
 
-          {/* Timeline */}
-          <div className="relative">
-            <div className="space-y-10">
-              {howItWorks.map((item, idx) => (
-                <div key={item.step} className="relative flex gap-6 md:gap-8 items-start">
-                  {/* Step badge + connector */}
-                  <div className="flex flex-col items-center shrink-0">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-base font-bold bg-accent-soft border border-accent/30 text-accent">
-                      {item.step}
-                    </div>
-                    {idx < howItWorks.length - 1 && (
-                      <div className="w-px flex-1 min-h-[60px] bg-accent/20 mt-3" />
-                    )}
-                  </div>
+          {/* 3-card horizontal grid */}
+          <div className="grid md:grid-cols-3 gap-5">
+            {howItWorks.map((item) => (
+              <div
+                key={item.step}
+                className="rounded-2xl border border-border-default bg-bg-secondary p-7 flex flex-col"
+              >
+                <span className="inline-flex w-fit items-center px-2.5 py-1 rounded-lg bg-bg-muted text-text-secondary text-xs font-semibold mb-5">
+                  {item.step}
+                </span>
+                <h3 className="text-xl font-bold text-text-primary mb-2">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-text-secondary leading-relaxed mb-6 flex-1">
+                  {item.blurb}
+                </p>
 
-                  {/* Content (no card wrapper — cleaner) */}
-                  <div className="flex-1 pt-1.5 pb-2">
-                    <h3 className="text-xl md:text-2xl font-bold text-text-primary mb-2">
-                      {item.title}
-                    </h3>
-                    <p className="text-text-secondary leading-relaxed mb-4 max-w-2xl">
-                      {item.blurb}
-                    </p>
-                    <div className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium bg-accent-soft border border-accent/20 text-accent">
-                      <Check size={14} className="shrink-0" strokeWidth={3} />
-                      {item.detail}
-                    </div>
+                {/* Visual area */}
+                <div className="aspect-[5/3] rounded-xl bg-gradient-to-br from-accent-soft via-bg-muted to-bg-secondary border border-border-default flex items-center justify-center relative overflow-hidden">
+                  {/* Decorative dots */}
+                  <div className="absolute top-3 left-4 w-1.5 h-1.5 rounded-full bg-accent/60" />
+                  <div className="absolute top-6 right-5 w-1 h-1 rounded-full bg-accent/40" />
+                  <div className="absolute bottom-4 left-6 w-1 h-1 rounded-full bg-accent/30" />
+                  <div className="absolute bottom-6 right-4 w-2 h-2 rounded-full bg-accent/40" />
+                  <div className="absolute top-1/2 left-3 w-1 h-1 rounded-full bg-accent/30" />
+                  <div className="absolute top-1/3 right-8 w-1.5 h-1.5 rounded-full bg-accent/50" />
+                  <div className="w-16 h-16 rounded-2xl bg-bg-secondary border-2 border-accent/30 flex items-center justify-center shadow-lg relative z-10">
+                    <item.icon size={28} className="text-accent" strokeWidth={2.2} />
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
