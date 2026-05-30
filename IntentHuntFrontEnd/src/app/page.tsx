@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { Fragment } from "react";
 import { Button } from "@/components/ui/button";
-import { Zap, ArrowRight, Play, Search, BarChart3, MessageSquare, Target, TrendingUp } from "lucide-react";
+import { Zap, ArrowRight, Play, Search, BarChart3, MessageSquare, Target, TrendingUp, Check, X } from "lucide-react";
 
 const previewPosts = [
   {
@@ -121,7 +122,7 @@ export default function LandingPage() {
       {/* Background effects */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-20%] left-[10%] w-[600px] h-[600px] bg-accent/5 rounded-full blur-[150px]" />
-        <div className="absolute bottom-[-10%] right-[10%] w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[10%] w-[500px] h-[500px] bg-cyan-400/5 rounded-full blur-[120px]" />
       </div>
 
       {/* Header */}
@@ -162,16 +163,15 @@ export default function LandingPage() {
         <div className="text-center max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-sm mb-8 animate-fade-in">
             <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-            <span className="text-text-secondary">Now scanning Reddit, Twitter & LinkedIn</span>
+            <span className="text-text-secondary">Scanning Reddit, LinkedIn &amp; Twitter — live</span>
           </div>
 
           <h1 className="text-5xl md:text-6xl font-bold leading-tight mb-6 animate-slide-up">
-            Find customers who are{" "}
-            <span className="gradient-text">already looking</span> for your product
+            Find people <span className="gradient-text">asking</span> about what you sell
           </h1>
 
           <p className="text-xl text-text-secondary mb-10 max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: "0.1s" }}>
-            LeadPulse scans <span className="text-orange-500 font-medium">Reddit</span>, <span className="text-sky-500 font-medium">Twitter</span> & <span className="text-blue-600 font-medium">LinkedIn</span> to find people actively searching for what you sell — scores them by buying intent, and crafts <span className="text-accent font-medium">AI-powered replies</span> so you can respond in seconds before anyone else.
+            Across <span className="text-orange-600 font-semibold">Reddit</span>, <span className="text-blue-600 font-semibold">LinkedIn</span> &amp; <span className="text-sky-600 font-semibold">Twitter</span>, LeadPulse surfaces buying-intent posts, scores them, and writes a personalized DM in seconds — so you can reply before anyone else.
           </p>
 
           {/* Platform badges */}
@@ -185,20 +185,26 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: "0.2s" }}>
+          <div className="flex flex-col items-center gap-3 animate-slide-up" style={{ animationDelay: "0.2s" }}>
             <Link href="/auth/signup">
               <Button size="lg">
-                Start finding leads
+                Start finding buyers — free
                 <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>
-            <Button variant="secondary" size="lg">
-              <Play className="w-5 h-5" />
-              Watch demo
-            </Button>
+            <div className="flex items-center gap-2 text-xs text-text-tertiary">
+              <Check size={13} strokeWidth={3} className="text-accent" />
+              No credit card required
+              <span className="text-text-tertiary/60">·</span>
+              <Check size={13} strokeWidth={3} className="text-accent" />
+              30-day free trial
+              <span className="text-text-tertiary/60">·</span>
+              <a href="#demo-video" className="hover:text-text-primary transition-colors inline-flex items-center gap-1 underline-offset-4 hover:underline">
+                <Play size={11} />
+                Watch demo
+              </a>
+            </div>
           </div>
-
-          <p className="text-sm text-text-tertiary mt-6">Free plan available &middot; No credit card required</p>
         </div>
 
         {/* Product preview */}
@@ -221,14 +227,14 @@ export default function LandingPage() {
               </div>
 
               {/* Stats bar */}
-              <div className="px-6 pt-5 pb-3 border-b border-border-default bg-gradient-to-r from-accent/[0.06] via-transparent to-transparent">
+              <div className="px-6 pt-5 pb-3 border-b border-border-default bg-accent-soft/40">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
-                    <div className="text-xs uppercase tracking-[0.24em] text-accent/80 mb-2">
+                    <div className="text-xs uppercase tracking-[0.24em] text-accent mb-2 font-semibold">
                       Live discovery snapshot
                     </div>
-                    <div className="text-lg font-semibold text-white">47 leads found this week</div>
-                    <div className="text-sm text-text-tertiary">
+                    <div className="text-lg font-semibold text-text-primary">47 leads found this week</div>
+                    <div className="text-sm text-text-secondary">
                       Ranked by purchase intent, source quality, and recency
                     </div>
                   </div>
@@ -238,9 +244,9 @@ export default function LandingPage() {
                       { label: "Ready", value: "8" },
                       { label: "New", value: "19" },
                     ].map((stat) => (
-                      <div key={stat.label} className="rounded-xl border border-border-default bg-bg-muted px-3 py-2">
+                      <div key={stat.label} className="rounded-xl border border-border-default bg-bg-secondary px-3 py-2">
                         <div className="text-[11px] uppercase tracking-wide text-text-tertiary">{stat.label}</div>
-                        <div className="text-base font-semibold text-white">{stat.value}</div>
+                        <div className="text-base font-semibold text-text-primary">{stat.value}</div>
                       </div>
                     ))}
                   </div>
@@ -254,46 +260,116 @@ export default function LandingPage() {
                     key={i}
                     className={`flex items-start gap-4 p-4 rounded-2xl border transition-all ${
                       post.featured
-                        ? "bg-gradient-to-r from-accent/10 via-white/[0.04] to-transparent border-accent/20 shadow-[0_12px_40px_-20px_rgba(22,163,74,0.35)]"
-                        : "bg-bg-muted border-border-default"
+                        ? "bg-accent-soft border-accent/30 shadow-[0_12px_40px_-20px_rgba(22,163,74,0.25)]"
+                        : "bg-bg-secondary border-border-default"
                     }`}
                   >
                     <div
-                      className={`px-3 py-1 rounded-full text-xs font-bold ${
+                      className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${
                         post.score >= 80
-                          ? "bg-red-500/20 text-red-400"
+                          ? "bg-red-100 text-red-700"
                           : post.score >= 50
-                            ? "bg-green-500/20 text-green-400"
-                            : "bg-amber-500/20 text-amber-400"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-amber-100 text-amber-700"
                       }`}
                     >
                       {post.score >= 80 ? "Hot" : post.score >= 50 ? "Good" : "Watch"} {post.score}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                        <span className="text-[11px] uppercase tracking-wide text-accent">{post.tag}</span>
+                        <span className="text-[11px] uppercase tracking-wide font-semibold text-accent">{post.tag}</span>
                         <span className="text-text-tertiary">&middot;</span>
                         <span className={`text-[11px] font-medium ${
-                          post.source === "Reddit" ? "text-orange-400" : post.source === "LinkedIn" ? "text-blue-400" : "text-amber-400"
+                          post.source === "Reddit" ? "text-orange-600" : post.source === "LinkedIn" ? "text-blue-600" : "text-sky-600"
                         }`}>
                           {post.community}
                         </span>
                         <span className="text-text-tertiary">&middot;</span>
                         <span className="text-[11px] text-text-tertiary">{post.time}</span>
                       </div>
-                      <div className="text-sm font-medium text-text-primary mb-1">{post.title}</div>
-                      <div className="text-xs text-text-tertiary mb-1.5">{post.meta}</div>
-                      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/[0.07] border border-amber-500/15 w-fit">
-                        <span className="text-[10px] text-amber-300/80">{post.strategy}</span>
+                      <div className="text-sm font-semibold text-text-primary mb-1">{post.title}</div>
+                      <div className="text-xs text-text-secondary mb-2">{post.meta}</div>
+                      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 border border-amber-200 w-fit">
+                        <span className="text-[10px] font-medium text-amber-700">{post.strategy}</span>
                       </div>
                     </div>
                     {post.featured && (
-                      <button className="shrink-0 rounded-xl border border-accent/20 bg-accent/10 px-3 py-2 text-xs font-medium text-accent hover:bg-accent/15">
+                      <button className="shrink-0 rounded-xl bg-accent px-3 py-2 text-xs font-semibold text-white hover:bg-accent-hover transition-colors">
                         Generate reply
                       </button>
                     )}
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Before / After reply comparison */}
+      <section className="relative z-10 py-20 border-t border-border-default bg-bg-secondary">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent-soft px-4 py-2 text-xs uppercase tracking-[0.22em] text-accent font-semibold mb-5">
+              Why it works
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold leading-tight mb-4">
+              Replies that don&apos;t sound like{" "}
+              <span className="gradient-text">AI</span>
+            </h2>
+            <p className="text-text-secondary max-w-2xl mx-auto">
+              Most outreach tools stop at <code className="text-[13px] px-1.5 py-0.5 rounded bg-bg-muted text-text-primary font-mono">{`{{first_name}}`}</code>. LeadPulse reads the exact post and writes a reply that references their problem, not their name.
+            </p>
+          </div>
+
+          {/* The Reddit post being replied to */}
+          <div className="max-w-2xl mx-auto mb-6 rounded-2xl border border-border-default bg-bg-primary p-5">
+            <div className="flex items-center gap-2 text-[11px] text-text-tertiary mb-2">
+              <span className="font-semibold text-orange-600">r/freelance</span>
+              <span>·</span>
+              <span>posted 2h ago by /u/sarah_designs</span>
+            </div>
+            <div className="text-sm font-semibold mb-1.5">Looking for a simple invoicing tool for freelancers</div>
+            <div className="text-sm text-text-secondary leading-relaxed">
+              Hey all, I&apos;ve been using FreshBooks but it&apos;s overkill for my single-person shop. Just need something that does invoices, late-fee reminders, and accepts Stripe. Open to alternatives under $20/mo.
+            </div>
+          </div>
+
+          {/* The replies side by side */}
+          <div className="grid md:grid-cols-2 gap-5">
+            {/* Generic */}
+            <div className="rounded-2xl border border-border-default bg-bg-primary p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-lg bg-bg-muted flex items-center justify-center">
+                  <X size={14} className="text-text-tertiary" />
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
+                  Generic outreach tool
+                </span>
+              </div>
+              <p className="text-sm text-text-secondary leading-relaxed">
+                Hi <span className="bg-amber-100 text-amber-700 px-1 rounded font-mono text-xs">{`{{first_name}}`}</span>! Saw your post about invoicing. We built <span className="bg-amber-100 text-amber-700 px-1 rounded font-mono text-xs">{`{{product}}`}</span> for freelancers like you. Sign up for a free trial here: <span className="underline">[link]</span>
+              </p>
+              <div className="mt-4 text-[11px] text-red-700 font-medium">
+                Sounds like a bot. Buyer ignores it.
+              </div>
+            </div>
+
+            {/* LeadPulse */}
+            <div className="rounded-2xl border-2 border-accent/30 bg-accent-soft p-5 shadow-[0_12px_40px_-20px_rgba(22,163,74,0.35)]">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
+                  <Check size={14} className="text-white" strokeWidth={3} />
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-wide text-accent">
+                  LeadPulse
+                </span>
+              </div>
+              <p className="text-sm text-text-primary leading-relaxed">
+                Hey Sarah — totally feel you on FreshBooks being overkill for a solo shop. The Stripe + late-fee reminder combo is exactly what we built our invoicing flow around. $9/mo, no learning curve. If it&apos;s useful here&apos;s a quick try-it link, otherwise happy to send screenshots.
+              </p>
+              <div className="mt-4 text-[11px] text-accent font-medium">
+                References her exact pain. Reads like a peer.
               </div>
             </div>
           </div>
@@ -367,47 +443,108 @@ export default function LandingPage() {
 
           {/* Timeline */}
           <div className="relative">
-            {/* Vertical line */}
-            <div className="absolute left-[27px] top-0 bottom-0 w-px bg-gradient-to-b from-accent/40 via-accent/20 to-transparent hidden md:block" />
-
-            <div className="space-y-12 md:space-y-16">
+            <div className="space-y-10">
               {howItWorks.map((item, idx) => (
-                <div key={item.step} className="relative flex gap-8 md:gap-12 items-start">
-                  {/* Timeline node */}
-                  <div className="hidden md:flex flex-col items-center shrink-0">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold border-2 bg-accent/15 border-accent/40 text-accent shadow-[0_0_20px_rgba(22,163,74,0.12)]">
+                <div key={item.step} className="relative flex gap-6 md:gap-8 items-start">
+                  {/* Step badge + connector */}
+                  <div className="flex flex-col items-center shrink-0">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-base font-bold bg-accent-soft border border-accent/30 text-accent">
                       {item.step}
                     </div>
                     {idx < howItWorks.length - 1 && (
-                      <div className="w-px h-full bg-gradient-to-b from-white/10 to-transparent mt-3" />
+                      <div className="w-px flex-1 min-h-[60px] bg-accent/20 mt-3" />
                     )}
                   </div>
 
-                  {/* Content card */}
-                  <div className="flex-1 relative overflow-hidden rounded-2xl border border-border-default bg-bg-secondary p-6 group hover:border-border-hover transition-all">
-                    <div className="absolute inset-0 opacity-50 bg-gradient-to-br from-accent/[0.06] to-transparent" />
-                    <div className="relative">
-                      {/* Mobile step number */}
-                      <div className="md:hidden inline-flex items-center gap-2 mb-3">
-                        <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-accent/15 text-accent">
-                          {item.step}
-                        </span>
-                      </div>
-
-                      <h3 className="text-xl font-semibold text-white mb-2">{item.title}</h3>
-                      <p className="text-text-secondary leading-relaxed mb-3">{item.blurb}</p>
-
-                      {/* Outcome pill */}
-                      <div className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm bg-accent/[0.07] border border-accent/15 text-accent/80">
-                        <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                        {item.detail}
-                      </div>
+                  {/* Content (no card wrapper — cleaner) */}
+                  <div className="flex-1 pt-1.5 pb-2">
+                    <h3 className="text-xl md:text-2xl font-bold text-text-primary mb-2">
+                      {item.title}
+                    </h3>
+                    <p className="text-text-secondary leading-relaxed mb-4 max-w-2xl">
+                      {item.blurb}
+                    </p>
+                    <div className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium bg-accent-soft border border-accent/20 text-accent">
+                      <Check size={14} className="shrink-0" strokeWidth={3} />
+                      {item.detail}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Comparison table */}
+      <section className="relative z-10 py-20 border-t border-border-default bg-bg-secondary">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent-soft px-4 py-2 text-xs uppercase tracking-[0.22em] text-accent font-semibold mb-5">
+              How we compare
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold leading-tight mb-3">
+              Why bet your pipeline on one platform?
+            </h2>
+            <p className="text-text-secondary max-w-2xl mx-auto">
+              Most outreach tools cover one community. LeadPulse runs across all three — so when your buyers move, you don&apos;t lose them.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-border-default overflow-hidden bg-bg-primary">
+            <div className="grid grid-cols-[1.5fr_1fr_1fr] text-sm">
+              {/* Header row */}
+              <div className="px-5 py-4 border-b border-border-default font-semibold text-text-secondary">
+                Feature
+              </div>
+              <div className="px-5 py-4 border-b border-l border-border-default text-center">
+                <div className="text-xs uppercase tracking-wide text-text-tertiary font-semibold">
+                  Other tools
+                </div>
+              </div>
+              <div className="px-5 py-4 border-b border-l border-border-default text-center bg-accent-soft/50">
+                <div className="text-xs uppercase tracking-wide text-accent font-bold">
+                  LeadPulse
+                </div>
+              </div>
+
+              {/* Rows */}
+              {[
+                { feat: "Reddit coverage",                  them: true,  us: true  },
+                { feat: "LinkedIn coverage",                 them: false, us: true  },
+                { feat: "Twitter / X coverage",              them: false, us: true  },
+                { feat: "AI-personalized DMs",               them: true,  us: true  },
+                { feat: "Public reply suggestions",          them: false, us: true  },
+                { feat: "Intent scoring (Hot / Warm / Cold)", them: false, us: true  },
+                { feat: "Multi-product tracking",            them: false, us: true  },
+                { feat: "Live realtime inbox",               them: false, us: true  },
+              ].map((row, idx, arr) => (
+                <Fragment key={row.feat}>
+                  <div className={`px-5 py-3.5 text-text-primary ${idx < arr.length - 1 ? "border-b border-border-default" : ""}`}>
+                    {row.feat}
+                  </div>
+                  <div className={`px-5 py-3.5 border-l border-border-default text-center ${idx < arr.length - 1 ? "border-b" : ""}`}>
+                    {row.them ? (
+                      <Check size={18} strokeWidth={3} className="text-text-tertiary inline" />
+                    ) : (
+                      <X size={18} strokeWidth={3} className="text-text-tertiary/40 inline" />
+                    )}
+                  </div>
+                  <div className={`px-5 py-3.5 border-l border-border-default text-center bg-accent-soft/30 ${idx < arr.length - 1 ? "border-b" : ""}`}>
+                    {row.us ? (
+                      <Check size={18} strokeWidth={3} className="text-accent inline" />
+                    ) : (
+                      <X size={18} strokeWidth={3} className="text-text-tertiary/40 inline" />
+                    )}
+                  </div>
+                </Fragment>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-text-tertiary mt-5">
+            Based on public features of common Reddit-focused outreach tools as of 2026.
+          </p>
         </div>
       </section>
 
