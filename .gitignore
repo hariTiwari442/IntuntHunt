@@ -20,6 +20,18 @@ dist/
 build/
 *.egg-info/
 
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Prisma generated
+.prisma/
+
+# Coverage
+coverage/
+*.lcov
+
 # IDE
 .vscode/
 .idea/
