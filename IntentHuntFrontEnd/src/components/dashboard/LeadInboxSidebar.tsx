@@ -4,15 +4,19 @@ import { cn } from "@/lib/utils";
 
 export type StatusFilter = "all" | "unread" | "saved" | "completed" | "discarded";
 export type PlatformFilter = "all" | "reddit" | "linkedin" | "twitter";
+export type TimeFilter = "all" | "24h";
 
 interface LeadInboxSidebarProps {
   statusCounts:    Record<StatusFilter, number>;
   platformCounts:  Record<PlatformFilter, number>;
+  timeCounts:      Record<TimeFilter, number>;
   status:          StatusFilter;
   platform:        PlatformFilter;
+  time:            TimeFilter;
   minRelevancy:    number;
   onStatusChange:    (s: StatusFilter) => void;
   onPlatformChange:  (p: PlatformFilter) => void;
+  onTimeChange:      (t: TimeFilter) => void;
   onRelevancyChange: (n: number) => void;
 }
 
@@ -31,14 +35,22 @@ const PLATFORM_OPTIONS: { value: PlatformFilter; label: string }[] = [
   { value: "twitter",  label: "Twitter" },
 ];
 
+const TIME_OPTIONS: { value: TimeFilter; label: string }[] = [
+  { value: "all", label: "All time" },
+  { value: "24h", label: "Last 24 hours" },
+];
+
 export function LeadInboxSidebar({
   statusCounts,
   platformCounts,
+  timeCounts,
   status,
   platform,
+  time,
   minRelevancy,
   onStatusChange,
   onPlatformChange,
+  onTimeChange,
   onRelevancyChange,
 }: LeadInboxSidebarProps) {
   return (
@@ -51,6 +63,18 @@ export function LeadInboxSidebar({
             count={statusCounts[opt.value]}
             active={status === opt.value}
             onClick={() => onStatusChange(opt.value)}
+          />
+        ))}
+      </FilterSection>
+
+      <FilterSection title="Time">
+        {TIME_OPTIONS.map((opt) => (
+          <FilterRow
+            key={opt.value}
+            label={opt.label}
+            count={timeCounts[opt.value]}
+            active={time === opt.value}
+            onClick={() => onTimeChange(opt.value)}
           />
         ))}
       </FilterSection>
@@ -69,7 +93,7 @@ export function LeadInboxSidebar({
 
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
             Relevancy
           </span>
           <span className="text-[11px] font-medium text-accent tabular-nums">
@@ -93,7 +117,7 @@ export function LeadInboxSidebar({
 function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary mb-2">
+      <div className="text-[10px] font-bold uppercase tracking-wider text-text-secondary mb-2">
         {title}
       </div>
       <div className="space-y-0.5">{children}</div>

@@ -9,7 +9,6 @@ interface LeadListProps {
   selectedLeadId:  string | null;
   isRunning:       boolean;
   onSelect:        (id: string) => void;
-  onEditPrompt:    () => void;
 }
 
 export function LeadList({
@@ -17,23 +16,16 @@ export function LeadList({
   selectedLeadId,
   isRunning,
   onSelect,
-  onEditPrompt,
 }: LeadListProps) {
   return (
     <div className="w-96 shrink-0 border-r border-border-default flex flex-col bg-bg-secondary">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border-default">
+      <div className="flex items-center px-4 py-3 border-b border-border-default">
         <div className="flex items-center gap-2">
           <h2 className="font-semibold text-sm">Inbox</h2>
           <span className="text-xs text-text-tertiary">({leads.length})</span>
           {isRunning && <Loader2 size={12} className="animate-spin text-accent" />}
         </div>
-        <button
-          onClick={onEditPrompt}
-          className="text-xs text-text-secondary hover:text-text-primary px-2 py-1 rounded-md hover:bg-bg-card-hover transition-colors"
-        >
-          Edit prompt
-        </button>
       </div>
 
       {/* Rows */}
@@ -91,7 +83,18 @@ function LeadRow({
       )}
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
-        <RelevancyBadge score={score} />
+        <div className="flex items-center gap-1.5">
+          <RelevancyBadge score={score} />
+          {isWithin24h(lead.createdAt) && (
+            <span
+              title="Found within the last 24 hours"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-accent-soft text-accent cursor-help"
+            >
+              <span className="w-1 h-1 rounded-full bg-accent animate-pulse" />
+              NEW
+            </span>
+          )}
+        </div>
         <span className="text-[10px] text-text-tertiary shrink-0">
           {formatTimeAgo(lead.createdAt)}
         </span>
@@ -141,4 +144,8 @@ function formatTimeAgo(iso: string): string {
   const d = Math.floor(hr / 24);
   if (d < 30)           return `${d}d`;
   return new Date(iso).toLocaleDateString();
+}
+
+function isWithin24h(iso: string): boolean {
+  return Date.now() - new Date(iso).getTime() < 24 * 60 * 60 * 1000;
 }

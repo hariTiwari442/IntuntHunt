@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { Fragment } from "react";
 import { Button } from "@/components/ui/button";
-import { Zap, ArrowRight, Play, Search, BarChart3, MessageSquare, Target, TrendingUp, Check, X, Send, Inbox, Bell } from "lucide-react";
+import { HeaderAuthCTA, HeroAuthCTA, FinalAuthCTA, LandingLogoLink } from "@/components/landing/AuthCTAs";
+import { Zap, Search, BarChart3, MessageSquare, Target, TrendingUp, Check, X, Send, Inbox, Bell, Sparkles } from "lucide-react";
 
 const previewPosts = [
   {
     score: 92,
-    title: "Looking for a simple invoicing tool for freelancers",
-    meta: "Budget-conscious buyer asking for alternatives",
+    title: "What's your favorite lead-gen tool right now? Apollo too expensive",
+    meta: "Active buyer + pricing objection — strong fit",
     source: "Reddit",
-    community: "r/freelance",
+    community: "r/sales",
     time: "2h ago",
     tag: "High Intent",
     strategy: "Reply to the post",
@@ -17,8 +18,8 @@ const previewPosts = [
   },
   {
     score: 85,
-    title: "FreshBooks alternative that won't break the bank?",
-    meta: "Clear purchase intent with pricing concern",
+    title: "Best Clay alternatives for solo founders?",
+    meta: "Comparison shopping, budget-conscious",
     source: "Twitter",
     community: "Twitter",
     time: "4h ago",
@@ -27,8 +28,8 @@ const previewPosts = [
   },
   {
     score: 78,
-    title: "Switched from Apollo to something better — here's what I learned",
-    meta: "Author sharing experience, commenters asking for alternatives",
+    title: "Just switched from Apollo to a leaner stack — sharing what worked",
+    meta: "Commenters asking what to switch to",
     source: "LinkedIn",
     community: "LinkedIn",
     time: "5h ago",
@@ -37,8 +38,8 @@ const previewPosts = [
   },
   {
     score: 65,
-    title: "Need an easier way to send payment reminders",
-    meta: "Pain point identified, solution not chosen yet",
+    title: "Need a way to find buyers outside of LinkedIn — any tool recs?",
+    meta: "Pain point identified, no solution yet",
     source: "Reddit",
     community: "r/Entrepreneur",
     time: "7h ago",
@@ -113,6 +114,73 @@ const howItWorks = [
   },
 ];
 
+// ── Mini mockups used inside "How it works" cards ──────────────────────────
+
+function Step1Visual() {
+  return (
+    <div className="h-full flex flex-col justify-center max-w-[90%] mx-auto">
+      <div className="flex items-center gap-1.5 mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-text-tertiary">
+        <Sparkles size={9} className="text-accent" strokeWidth={2.5} />
+        Product description
+      </div>
+      <div className="rounded-lg bg-bg-secondary border border-border-default px-2.5 py-2 shadow-sm">
+        <p className="text-[11px] text-text-primary leading-relaxed">
+          AI lead-gen tool for B2B SaaS founders
+          <span className="inline-block w-[1.5px] h-3 bg-accent ml-0.5 align-middle animate-pulse" />
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Step2Visual() {
+  const platforms = [
+    { name: "Reddit",   dot: "bg-orange-500" },
+    { name: "LinkedIn", dot: "bg-blue-600"   },
+    { name: "Twitter",  dot: "bg-sky-500"    },
+  ];
+  return (
+    <div className="h-full flex flex-col justify-center max-w-[90%] mx-auto space-y-1">
+      {platforms.map((p) => (
+        <div
+          key={p.name}
+          className="flex items-center justify-between px-2 py-1 rounded-md bg-bg-secondary border border-border-default shadow-sm"
+        >
+          <span className="flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full ${p.dot}`} />
+            <span className="text-[10px] font-medium text-text-primary">{p.name}</span>
+          </span>
+          <span className="text-[8px] text-accent font-semibold flex items-center gap-1">
+            <span className="w-1 h-1 rounded-full bg-accent animate-pulse" />
+            scanning
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Step3Visual() {
+  return (
+    <div className="h-full flex flex-col justify-center max-w-[92%] mx-auto">
+      <div className="rounded-lg bg-bg-secondary border border-border-default px-2.5 py-2 mb-1.5 shadow-sm">
+        <div className="text-[8px] uppercase tracking-wider text-text-tertiary mb-0.5 font-semibold">
+          To · u/sarah_designs
+        </div>
+        <p className="text-[10px] text-text-primary leading-snug">
+          Hey Sarah — feel you on FreshBooks being overkill. The Stripe + late-fee combo…
+        </p>
+      </div>
+      <div className="flex justify-end">
+        <button className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-md bg-accent text-white shadow">
+          Send DM
+          <Send size={9} strokeWidth={3} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen">
@@ -125,33 +193,23 @@ export default function LandingPage() {
       {/* Header */}
       <header className="relative z-10 border-b border-border-default">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <LandingLogoLink>
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-[#22d3ee] flex items-center justify-center">
               <Zap className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-bold">LeadPulse</span>
-          </div>
+          </LandingLogoLink>
 
           <nav className="hidden md:flex items-center gap-8">
             <Link href="/pricing" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
               Pricing
             </Link>
-            <a href="#features" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
-              Features
-            </a>
             <a href="#how" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
               How it works
             </a>
           </nav>
 
-          <div className="flex items-center gap-3">
-            <Link href="/auth/login" className="text-sm text-text-secondary hover:text-text-primary transition-colors px-4 py-2">
-              Log in
-            </Link>
-            <Link href="/auth/signup">
-              <Button size="sm">Start free</Button>
-            </Link>
-          </div>
+          <HeaderAuthCTA />
         </div>
       </header>
 
@@ -182,29 +240,17 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <div className="flex flex-col items-center gap-3 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-            <Link href="/auth/signup">
-              <Button size="lg">
-                Start finding buyers — free
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-            </Link>
-            <div className="flex items-center gap-2 text-xs text-text-tertiary">
-              <Check size={13} strokeWidth={3} className="text-accent" />
-              No credit card required
-              <span className="text-text-tertiary/60">·</span>
-              <Check size={13} strokeWidth={3} className="text-accent" />
-              30-day free trial
-              <span className="text-text-tertiary/60">·</span>
-              <a href="#demo-video" className="hover:text-text-primary transition-colors inline-flex items-center gap-1 underline-offset-4 hover:underline">
-                <Play size={11} />
-                Watch demo
-              </a>
-            </div>
-          </div>
+          <HeroAuthCTA />
         </div>
 
-        {/* Product preview */}
+        {/* ════════════════════════════════════════════════════════════════
+            🎬  SWAP ME — replace this product-preview mockup with a YouTube
+            demo video when ready. The <VideoEmbed /> scaffold sits right
+            below this block — uncomment it and delete this whole
+            "Product preview" div. Search: "SWAP ME"
+            ════════════════════════════════════════════════════════════════ */}
+
+        {/* Product preview (placeholder mockup — to be swapped for demo video) */}
         <div className="mt-20 relative animate-float">
           <div className="absolute inset-0 bg-gradient-to-t from-bg-primary via-transparent to-transparent z-10 pointer-events-none" />
           <div className="glass rounded-2xl p-1 max-w-4xl mx-auto">
@@ -301,6 +347,33 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+
+        {/* ════════════════════════════════════════════════════════════════
+            🎬  YOUTUBE DEMO VIDEO — SWAP ME
+            ────────────────────────────────────────────────────────────────
+            When the demo video is ready:
+              1. Replace YOUR_VIDEO_ID below with your actual YouTube video ID
+              2. Set `false` to `true` on the {false && (...)} below
+              3. Delete the "Product preview" mockup block above this one
+                 (the one with the browser bar + sample posts)
+            The aspect ratio + max-width match the current mockup, so the
+            page layout stays identical after the swap.
+            ════════════════════════════════════════════════════════════════ */}
+        {false && (
+        <div className="mt-20 relative animate-float">
+          <div className="glass rounded-2xl p-1 max-w-4xl mx-auto">
+            <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-bg-secondary">
+              <iframe
+                src="https://www.youtube.com/embed/YOUR_VIDEO_ID"
+                title="LeadPulse demo"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+                allowFullScreen
+                className="absolute inset-0 w-full h-full"
+              />
+            </div>
+          </div>
+        </div>
+        )}
       </section>
 
       {/* Get the hottest leads in seconds (split: copy left, inbox mockup right) */}
@@ -360,23 +433,25 @@ export default function LandingPage() {
                     </button>
                   </div>
 
-                  {/* Filter by subreddit */}
+                  {/* Filter by platform */}
                   <div>
                     <div className="text-[9px] font-semibold uppercase tracking-wider text-text-tertiary mb-1.5 px-2">
-                      Filter by subreddit
+                      Filter by platform
                     </div>
                     <div className="space-y-0.5">
                       {[
-                        { sub: "r/Entrepreneur", count: 1 },
-                        { sub: "r/Marketing",    count: 4 },
-                        { sub: "r/SaaS",         count: 2 },
-                        { sub: "r/Growth",       count: 0 },
-                      ].map((s) => (
-                        <div key={s.sub} className="flex items-center justify-between px-2 py-1.5 text-xs text-text-secondary">
-                          <span>{s.sub}</span>
-                          {s.count > 0 && (
-                            <span className="text-[10px] tabular-nums bg-orange-100 text-orange-700 px-1.5 rounded-full font-semibold">
-                              {s.count}
+                        { name: "Reddit",   count: 4, dot: "bg-orange-500"      },
+                        { name: "LinkedIn", count: 2, dot: "bg-blue-600"        },
+                        { name: "Twitter",  count: 1, dot: "bg-sky-500"         },
+                      ].map((p) => (
+                        <div key={p.name} className="flex items-center justify-between px-2 py-1.5 text-xs text-text-secondary">
+                          <span className="flex items-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${p.dot}`} />
+                            {p.name}
+                          </span>
+                          {p.count > 0 && (
+                            <span className="text-[10px] tabular-nums bg-accent-soft text-accent px-1.5 rounded-full font-semibold">
+                              {p.count}
                             </span>
                           )}
                         </div>
@@ -392,19 +467,24 @@ export default function LandingPage() {
                   </div>
                   <div className="divide-y divide-border-default">
                     {[
-                      { user: "u/DudeApric",   when: "4 hr ago",     title: "What are the best no-code website builders?",   color: "from-orange-400 to-red-400" },
-                      { user: "u/someone123",  when: "1 day ago",    title: "This is my portfolio website. Roast my website!", color: "from-purple-400 to-pink-400" },
-                      { user: "u/johndoe",     when: "2 days ago",   title: "Seeking feedback on website layout.",             color: "from-blue-400 to-cyan-400" },
-                      { user: "u/techbaby",    when: "1 week ago",   title: "Any AI website builders that are free?",          color: "from-emerald-400 to-teal-400" },
-                      { user: "u/creativeMind",when: "3 weeks ago",  title: "Best Webflow alternatives?",                      color: "from-amber-400 to-orange-400" },
+                      { user: "u/markets_guy",  when: "3 hr ago",   title: "What lead gen tool do you actually use day-to-day?",        src: "r/sales",         dot: "bg-orange-500", color: "from-orange-400 to-red-400"   },
+                      { user: "Sarah K.",       when: "1 day ago",  title: "Switched from Apollo — what's your lead stack now?",       src: "LinkedIn post",   dot: "bg-blue-600",   color: "from-blue-400 to-cyan-400"    },
+                      { user: "@daviddraws",    when: "2 days ago", title: "Looking for a tool that finds leads on Reddit 🙃",          src: "Twitter",         dot: "bg-sky-500",    color: "from-sky-400 to-blue-400"     },
+                      { user: "u/coldcaller",   when: "5 days ago", title: "Best Clay alternatives for finding outbound leads?",        src: "r/sales",         dot: "bg-orange-500", color: "from-emerald-400 to-teal-400" },
+                      { user: "u/soloFounder",  when: "1 week ago", title: "Any lead finder under $50/mo that doesn't suck?",           src: "r/Entrepreneur",  dot: "bg-orange-500", color: "from-amber-400 to-orange-400" },
                     ].map((row, i) => (
                       <div key={i} className="px-5 py-3">
                         <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${row.color}`} />
-                            <span className="text-[11px] font-medium text-text-secondary">{row.user}</span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className={`w-3 h-3 rounded-full bg-gradient-to-br ${row.color} shrink-0`} />
+                            <span className="text-[11px] font-medium text-text-secondary truncate">{row.user}</span>
+                            <span className="text-[10px] text-text-tertiary">·</span>
+                            <span className="inline-flex items-center gap-1 text-[10px] text-text-tertiary shrink-0">
+                              <span className={`w-1 h-1 rounded-full ${row.dot}`} />
+                              {row.src}
+                            </span>
                           </div>
-                          <span className="text-[10px] text-text-tertiary">{row.when}</span>
+                          <span className="text-[10px] text-text-tertiary shrink-0 ml-2">{row.when}</span>
                         </div>
                         <div className="text-sm text-text-primary leading-snug">{row.title}</div>
                       </div>
@@ -413,6 +493,56 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section id="how" className="relative z-10 py-20 border-t border-border-default overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute left-[8%] top-16 h-56 w-56 rounded-full bg-accent/[0.05] blur-[110px]" />
+          <div className="absolute right-[10%] bottom-10 h-64 w-64 rounded-full bg-cyan-400/[0.05] blur-[120px]" />
+        </div>
+        <div className="relative max-w-6xl mx-auto px-6">
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <h2 className="text-4xl md:text-5xl font-bold leading-tight mb-5">
+              From vague demand to{" "}
+              <span className="gradient-text">actionable buyer signals</span>
+            </h2>
+            <p className="text-text-secondary text-base leading-7 mx-auto">
+              Most teams waste hours digging through communities manually. LeadPulse turns that chaos into a simple 3-step workflow.
+            </p>
+          </div>
+
+          {/* 3-card horizontal grid */}
+          <div className="grid md:grid-cols-3 gap-5">
+            {howItWorks.map((item, i) => (
+              <div
+                key={item.step}
+                className="rounded-2xl border border-border-default bg-bg-secondary p-7 flex flex-col"
+              >
+                <span className="inline-flex w-fit items-center px-2.5 py-1 rounded-lg bg-bg-muted text-text-secondary text-xs font-semibold mb-5">
+                  {item.step}
+                </span>
+                <h3 className="text-xl font-bold text-text-primary mb-2">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-text-secondary leading-relaxed mb-6 flex-1">
+                  {item.blurb}
+                </p>
+
+                {/* Visual area — mini product mockup per step */}
+                <div className="aspect-[5/3] rounded-xl bg-gradient-to-br from-accent-soft/60 via-bg-muted to-bg-secondary border border-border-default p-3.5 relative overflow-hidden">
+                  {/* Subtle decorative accent dots */}
+                  <div className="absolute top-2 right-3 w-1 h-1 rounded-full bg-accent/40" />
+                  <div className="absolute bottom-3 left-3 w-1 h-1 rounded-full bg-accent/30" />
+
+                  {i === 0 && <Step1Visual />}
+                  {i === 1 && <Step2Visual />}
+                  {i === 2 && <Step3Visual />}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -487,7 +617,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Features — DISABLED. Kept in code; flip `false` to `true` to re-enable. */}
+      {false && (
       <section id="features" className="relative z-10 py-20 border-t border-border-default">
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-10 items-end mb-16">
@@ -531,59 +662,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
-      {/* How it works */}
-      <section id="how" className="relative z-10 py-20 border-t border-border-default overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute left-[8%] top-16 h-56 w-56 rounded-full bg-accent/[0.05] blur-[110px]" />
-          <div className="absolute right-[10%] bottom-10 h-64 w-64 rounded-full bg-cyan-400/[0.05] blur-[120px]" />
-        </div>
-        <div className="relative max-w-6xl mx-auto px-6">
-          <div className="text-center max-w-3xl mx-auto mb-14">
-            <h2 className="text-4xl md:text-5xl font-bold leading-tight mb-5">
-              From vague demand to{" "}
-              <span className="gradient-text">actionable buyer signals</span>
-            </h2>
-            <p className="text-text-secondary text-base leading-7 mx-auto">
-              Most teams waste hours digging through communities manually. LeadPulse turns that chaos into a simple 3-step workflow.
-            </p>
-          </div>
-
-          {/* 3-card horizontal grid */}
-          <div className="grid md:grid-cols-3 gap-5">
-            {howItWorks.map((item) => (
-              <div
-                key={item.step}
-                className="rounded-2xl border border-border-default bg-bg-secondary p-7 flex flex-col"
-              >
-                <span className="inline-flex w-fit items-center px-2.5 py-1 rounded-lg bg-bg-muted text-text-secondary text-xs font-semibold mb-5">
-                  {item.step}
-                </span>
-                <h3 className="text-xl font-bold text-text-primary mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-text-secondary leading-relaxed mb-6 flex-1">
-                  {item.blurb}
-                </p>
-
-                {/* Visual area */}
-                <div className="aspect-[5/3] rounded-xl bg-gradient-to-br from-accent-soft via-bg-muted to-bg-secondary border border-border-default flex items-center justify-center relative overflow-hidden">
-                  {/* Decorative dots */}
-                  <div className="absolute top-3 left-4 w-1.5 h-1.5 rounded-full bg-accent/60" />
-                  <div className="absolute top-6 right-5 w-1 h-1 rounded-full bg-accent/40" />
-                  <div className="absolute bottom-4 left-6 w-1 h-1 rounded-full bg-accent/30" />
-                  <div className="absolute bottom-6 right-4 w-2 h-2 rounded-full bg-accent/40" />
-                  <div className="absolute top-1/2 left-3 w-1 h-1 rounded-full bg-accent/30" />
-                  <div className="absolute top-1/3 right-8 w-1.5 h-1.5 rounded-full bg-accent/50" />
-                  <div className="w-16 h-16 rounded-2xl bg-bg-secondary border-2 border-accent/30 flex items-center justify-center shadow-lg relative z-10">
-                    <item.icon size={28} className="text-accent" strokeWidth={2.2} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      )}
 
       {/* Comparison table */}
       <section className="relative z-10 py-20 border-t border-border-default bg-bg-secondary">
@@ -663,13 +742,7 @@ export default function LandingPage() {
           <div className="glass rounded-3xl p-12 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-accent/5 via-transparent to-accent/5" />
             <div className="relative z-10">
-              <h2 className="text-3xl font-bold mb-4">Ready to find your next customers?</h2>
-              <p className="text-text-secondary mb-8">
-                Stop losing customers to competitors who reply first. Start capturing high-intent leads today.
-              </p>
-              <Link href="/auth/signup">
-                <Button size="lg">Start free trial &rarr;</Button>
-              </Link>
+              <FinalAuthCTA />
             </div>
           </div>
         </div>

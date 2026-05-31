@@ -6,13 +6,14 @@
   "scripts": {
     "dev": "next dev -p 8080",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 8080",
     "lint": "next lint"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.106.0",
     "@tailwindcss/postcss": "^4.2.2",
     "@tanstack/react-query": "^5.95.2",
     "@types/node": "^25.5.0",

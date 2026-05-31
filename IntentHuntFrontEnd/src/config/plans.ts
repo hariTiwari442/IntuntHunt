@@ -2,14 +2,16 @@ export type PlanName = "starter" | "pro" | "agency";
 
 export type Feature =
   | "suggested_replies"
-  | "hackernews"
-  | "unlimited_jobs"
+  | "linkedin"
+  | "twitter"
+  | "unlimited_products"
   | "multi_product";
 
 export interface PlanFeatures {
   name: PlanName;
   label: string;
-  jobsPerMonth: number | null; // null = unlimited
+  productsPerMonth: number | null; // null = unlimited; legacy field name was jobsPerMonth
+  jobsPerMonth:     number | null; // alias kept for backwards-compat with existing UI
   sources: string[];
   suggestedReplies: boolean;
   features: Feature[];
@@ -20,8 +22,9 @@ export const PLAN_FEATURES: Record<PlanName, PlanFeatures> = {
   starter: {
     name: "starter",
     label: "Starter",
-    jobsPerMonth: 3,
-    sources: ["reddit"],
+    productsPerMonth: 3,
+    jobsPerMonth:     3,
+    sources: ["Reddit"],
     suggestedReplies: false,
     features: [],
     price: { monthly: 0, annual: 0 },
@@ -29,19 +32,21 @@ export const PLAN_FEATURES: Record<PlanName, PlanFeatures> = {
   pro: {
     name: "pro",
     label: "Pro",
-    jobsPerMonth: 20,
-    sources: ["reddit", "hackernews"],
+    productsPerMonth: 20,
+    jobsPerMonth:     20,
+    sources: ["Reddit", "LinkedIn", "Twitter"],
     suggestedReplies: true,
-    features: ["suggested_replies", "hackernews"],
+    features: ["suggested_replies", "linkedin", "twitter"],
     price: { monthly: 29, annual: 24 },
   },
   agency: {
     name: "agency",
     label: "Agency",
-    jobsPerMonth: null,
-    sources: ["reddit", "hackernews"],
+    productsPerMonth: null,
+    jobsPerMonth:     null,
+    sources: ["Reddit", "LinkedIn", "Twitter"],
     suggestedReplies: true,
-    features: ["suggested_replies", "hackernews", "unlimited_jobs", "multi_product"],
+    features: ["suggested_replies", "linkedin", "twitter", "unlimited_products", "multi_product"],
     price: { monthly: 79, annual: 66 },
   },
 };

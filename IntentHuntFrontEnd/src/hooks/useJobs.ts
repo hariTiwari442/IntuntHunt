@@ -48,6 +48,8 @@ export interface Product {
   subreddits:     string[];
   lastSearchedAt: string | null;
   createdAt:      string;
+  leadCount?:     number;        // populated by GET /products list endpoint
+  newLeadCount?:  number;        // leads created in the last 24h
 }
 
 export interface SearchRun {

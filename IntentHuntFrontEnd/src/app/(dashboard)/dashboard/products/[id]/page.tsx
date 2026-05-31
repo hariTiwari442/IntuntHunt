@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
-import { LeadInboxSidebar, type StatusFilter, type PlatformFilter } from "@/components/dashboard/LeadInboxSidebar";
+import { LeadInboxSidebar, type StatusFilter, type PlatformFilter, type TimeFilter } from "@/components/dashboard/LeadInboxSidebar";
 import { LeadList } from "@/components/dashboard/LeadList";
 import { LeadDetail } from "@/components/dashboard/LeadDetail";
 import { EditProductModal } from "@/components/dashboard/EditProductModal";
@@ -17,7 +17,7 @@ import {
   useLeads,
 } from "@/hooks/useJobs";
 import { useLeadsRealtime } from "@/hooks/useLeadsRealtime";
-import { ArrowLeft, RefreshCw, Loader2 } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, Sparkles } from "lucide-react";
 
 export default function ProductDetailPage() {
   const params    = useParams();
@@ -42,6 +42,7 @@ export default function ProductDetailPage() {
   // Filters
   const [status,       setStatus]       = useState<StatusFilter>("all");
   const [platform,     setPlatform]     = useState<PlatformFilter>("all");
+  const [time,         setTime]         = useState<TimeFilter>("all");
   const [minRelevancy, setMinRelevancy] = useState(0);
 
   // Selected lead
@@ -51,6 +52,8 @@ export default function ProductDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
 
   // ── Filtering ─────────────────────────────────────────────────────────
+  const cutoff24h = useMemo(() => Date.now() - 24 * 60 * 60 * 1000, []);
+
   const filteredLeads = useMemo(() => {
     return leads.filter((l) => {
       if (status === "unread"     && l.viewedAt)                            return false;
@@ -60,12 +63,14 @@ export default function ProductDetailPage() {
 
       if (platform !== "all" && l.platform !== platform) return false;
 
+      if (time === "24h" && new Date(l.createdAt).getTime() < cutoff24h) return false;
+
       const displayScore = Math.min(100, l.intentScore + 10);
       if (displayScore < minRelevancy) return false;
 
       return true;
     });
-  }, [leads, status, platform, minRelevancy]);
+  }, [leads, status, platform, time, minRelevancy, cutoff24h]);
 
   // Auto-select first lead when filter changes / leads load
   useEffect(() => {
@@ -107,6 +112,15 @@ export default function ProductDetailPage() {
     }
     return c;
   }, [leads]);
+
+  const timeCounts = useMemo(() => {
+    const c: Record<TimeFilter, number> = { all: 0, "24h": 0 };
+    for (const l of leads) {
+      c.all++;
+      if (new Date(l.createdAt).getTime() >= cutoff24h) c["24h"]++;
+    }
+    return c;
+  }, [leads, cutoff24h]);
 
   // ── Find Leads ───────────────────────────────────────────────────────
   const isRunning = searchRun
@@ -172,6 +186,13 @@ export default function ProductDetailPage() {
               <span>{searchRun.leadsScored} scored</span>
             </div>
           )}
+          <button
+            onClick={() => setEditOpen(true)}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent border border-accent/30 bg-accent-soft px-3 py-1.5 rounded-xl hover:bg-accent hover:text-white hover:border-accent transition-colors"
+          >
+            <Sparkles size={14} strokeWidth={2.5} />
+            Edit prompt
+          </button>
           <Button size="sm" onClick={handleFindLeads} disabled={isRunning || findLeads.isPending}>
             {isRunning ? (
               <>
@@ -209,11 +230,14 @@ export default function ProductDetailPage() {
         <LeadInboxSidebar
           statusCounts={statusCounts}
           platformCounts={platformCounts}
+          timeCounts={timeCounts}
           status={status}
           platform={platform}
+          time={time}
           minRelevancy={minRelevancy}
           onStatusChange={setStatus}
           onPlatformChange={setPlatform}
+          onTimeChange={setTime}
           onRelevancyChange={setMinRelevancy}
         />
         <LeadList
@@ -221,7 +245,6 @@ export default function ProductDetailPage() {
           selectedLeadId={selectedLeadId}
           isRunning={isRunning}
           onSelect={setSelectedLeadId}
-          onEditPrompt={() => setEditOpen(true)}
         />
         <LeadDetail lead={selectedLead} />
       </div>

@@ -12,13 +12,12 @@ import {
   Package,
   Plus,
   ArrowUpRight,
+  ArrowRight,
   Loader2,
   Trash2,
   AlertTriangle,
   X,
-  Hash,
-  Globe,
-  Clock,
+  TrendingUp,
 } from "lucide-react";
 
 // Deterministic gradient based on product name — so each product gets a stable color
@@ -128,67 +127,92 @@ function DeleteProductModal({ product, onClose }: { product: Product; onClose: (
   );
 }
 
+const PLATFORM_PILLS = [
+  { name: "Reddit",   dot: "bg-orange-500" },
+  { name: "LinkedIn", dot: "bg-blue-600"   },
+  { name: "Twitter",  dot: "bg-sky-500"    },
+];
+
 function ProductRow({ product }: { product: Product }) {
   const [showDelete, setShowDelete] = useState(false);
 
-  const name        = product.name?.trim() || "Untitled product";
-  const initial     = name[0]!.toUpperCase();
-  const gradient    = gradientFor(name);
-  const subreddits  = product.subreddits?.length ?? 0;
-  const hasUrl      = !!product.productUrl;
+  const name      = product.name?.trim() || "Untitled product";
+  const initial   = name[0]!.toUpperCase();
+  const gradient  = gradientFor(name);
+  const leadCount = product.leadCount ?? 0;
 
   return (
     <>
       <Link href={`/dashboard/products/${product.id}`} className="block group">
-        <div className="relative bg-bg-secondary border border-border-default rounded-2xl p-5 transition-all duration-200 hover:border-accent/40 hover:shadow-[0_8px_30px_-12px_rgba(22,163,74,0.18)] hover:-translate-y-0.5">
-          <div className="flex items-start gap-4">
-            {/* Gradient avatar */}
+        <div className="relative bg-bg-secondary border border-border-default rounded-2xl p-6 transition-all duration-200 hover:border-accent/40 hover:shadow-[0_8px_30px_-12px_rgba(22,163,74,0.18)] hover:-translate-y-0.5">
+          {/* Top row: avatar + platform pills + delete (hover) */}
+          <div className="flex items-start justify-between mb-4">
             <div
-              className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-sm`}
+              className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-sm`}
             >
-              <span className="text-white text-xl font-bold">{initial}</span>
+              <span className="text-white text-lg font-bold">{initial}</span>
             </div>
 
-            {/* Main content */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-base font-semibold truncate text-text-primary">{name}</h3>
-                <ArrowUpRight
-                  size={14}
-                  className="text-text-tertiary group-hover:text-accent group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0"
-                />
-              </div>
-              <p className="text-sm text-text-secondary line-clamp-2 leading-relaxed mb-3">
-                {product.description}
-              </p>
-
-              {/* Stats chips */}
-              <div className="flex flex-wrap items-center gap-2">
-                {subreddits > 0 && (
-                  <StatChip icon={Hash} label={`${subreddits} subreddits`} />
-                )}
-                {hasUrl && (
-                  <StatChip icon={Globe} label="Has URL" />
-                )}
-                <StatChip
-                  icon={Clock}
-                  label={product.lastSearchedAt ? `Searched ${timeAgo(product.lastSearchedAt)}` : `Created ${timeAgo(product.createdAt)}`}
-                />
-              </div>
+            <div className="flex items-center gap-1.5">
+              {PLATFORM_PILLS.map((p) => (
+                <span
+                  key={p.name}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-accent-soft text-accent"
+                >
+                  <span className={`w-1 h-1 rounded-full ${p.dot}`} />
+                  {p.name}
+                </span>
+              ))}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowDelete(true);
+                }}
+                className="ml-1 opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-text-tertiary hover:text-red-600 hover:bg-red-50 transition-all"
+                title="Delete product"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
+          </div>
 
-            {/* Delete button — only visible on hover */}
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowDelete(true);
-              }}
-              className="opacity-0 group-hover:opacity-100 p-2 rounded-lg text-text-tertiary hover:text-red-600 hover:bg-red-50 transition-all shrink-0"
-              title="Delete product"
-            >
-              <Trash2 size={15} />
-            </button>
+          {/* Name + description */}
+          <h3 className="text-xl font-bold text-text-primary mb-1.5 truncate">{name}</h3>
+          <p className="text-sm text-text-secondary line-clamp-2 leading-relaxed mb-5">
+            {product.description}
+          </p>
+
+          {/* Big stat block */}
+          <div className="rounded-xl bg-bg-muted/60 border border-border-default px-4 py-3 mb-4">
+            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-text-tertiary font-semibold mb-1">
+              <TrendingUp size={11} className="text-accent" strokeWidth={2.5} />
+              Total Leads
+            </div>
+            <div className="flex items-baseline gap-2.5">
+              <div className="text-3xl font-bold text-text-primary tabular-nums">
+                {leadCount.toLocaleString()}
+              </div>
+              {(product.newLeadCount ?? 0) > 0 && (
+                <span
+                  title="Found within the last 24 hours"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-accent-soft text-accent cursor-help"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                  +{product.newLeadCount} new
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between pt-3 border-t border-border-default">
+            <span className="text-sm font-semibold text-accent inline-flex items-center gap-1.5">
+              View leads
+            </span>
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-accent-soft text-accent group-hover:bg-accent group-hover:text-white group-hover:translate-x-0.5 transition-all">
+              <ArrowRight size={15} strokeWidth={2.5} />
+            </span>
           </div>
         </div>
       </Link>
@@ -197,15 +221,6 @@ function ProductRow({ product }: { product: Product }) {
         <DeleteProductModal product={product} onClose={() => setShowDelete(false)} />
       )}
     </>
-  );
-}
-
-function StatChip({ icon: Icon, label }: { icon: typeof Hash; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-bg-muted text-text-secondary">
-      <Icon size={10} />
-      {label}
-    </span>
   );
 }
 
