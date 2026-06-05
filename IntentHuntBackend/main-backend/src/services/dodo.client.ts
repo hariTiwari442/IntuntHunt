@@ -90,8 +90,11 @@ export async function createSubscriptionCheckout(opts: {
       payment_link: true, // ask Dodo for a hosted-checkout URL
       return_url: opts.returnUrl,
       customer: {
+        // Dodo's CustomerRequest variant for a new customer requires BOTH
+        // email and name. If the profile has no display name yet, fall back
+        // to the email's local part so the request still validates.
         email: opts.customerEmail,
-        ...(opts.customerName ? { name: opts.customerName } : {}),
+        name:  opts.customerName?.trim() || opts.customerEmail.split("@")[0] || "Customer",
       },
       // Dodo requires a billing address shell even for digital products;
       // it'll be collected/edited on the hosted checkout page.
