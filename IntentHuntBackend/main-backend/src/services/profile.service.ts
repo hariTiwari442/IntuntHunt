@@ -55,11 +55,11 @@ export async function getProfileStats(userId: string) {
     throw new NotFoundError('Profile', userId);
   }
 
-  const jobCount = await prisma.crawlJob.count({ where: { userId } });
+  const productCount = await prisma.product.count({ where: { userId } });
 
   return {
-    totalJobs: jobCount,
-    plan:      profile.plan,
+    totalJobs:   productCount,   // kept the key for API back-compat
+    plan:        profile.plan,
     memberSince: profile.createdAt,
   };
 }

@@ -1,5 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Generate clients for local dev (native) AND Cloud Run's Debian-based runtime
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -15,71 +17,67 @@ model Profile {
   email         String   @unique
   name          String?
   avatarUrl     String?  @map("avatar_url")
-  plan          String   @default("starter")
+
+  // ── Subscription / Plan ─────────────────────────────────────────
+  plan                  String    @default("starter")        // "starter" | "pro" | "agency"
+  planStatus            String    @default("active") @map("plan_status")        // "active" | "trialing" | "past_due" | "canceled" | "paused" | "incomplete"
+  // Dodo Payments IDs. DB columns kept under their original "paddle_*" names
+  // so we don't need a migration — they're opaque billing IDs to our app.
+  dodoCustomerId        String?   @unique @map("paddle_customer_id")
+  dodoSubscriptionId    String?   @unique @map("paddle_subscription_id")
+  trialEndsAt           DateTime? @map("trial_ends_at")
+  currentPeriodEnd      DateTime? @map("current_period_end")
+  cancelAtPeriodEnd     Boolean   @default(false) @map("cancel_at_period_end")
+  billingInterval       String?   @map("billing_interval")   // "month" | "year"
+  // ────────────────────────────────────────────────────────────────
+
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  // Relations
-  crawlJobs     CrawlJob[]
   products      Product[]
 
   @@map("profiles")
+  @@index([dodoCustomerId])
+  @@index([dodoSubscriptionId])
+}
+
+// ── Webhook event idempotency tracking ───────────────────────────
+// One row per Dodo (Svix) event we've processed. Prevents duplicate
+// handling if Dodo retries on any non-200 response.
+// DB table kept as "paddle_events" so no migration is needed.
+model DodoEvent {
+  id          String   @id            // Svix webhook-id header value
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at")
+  payload     Json     // full event payload, for debugging
+
+  @@map("paddle_events")
+  @@index([eventType])
+  @@index([processedAt])
 }
 
 // ── Products ──────────────────────────────────────────────
-// Stores the keyword generation result for each product a user tracks.
+// Stores the keyword intelligence + Google-search queries for each product.
+// `queries` shape: { redditGlobal: string[], redditSubreddit: Record<string, string[]>,
+//                    linkedin: string[], twitter: string[], producthunt: string[],
+//                    indiehackers: string[] }
+// Subreddits list is derived from Object.keys(redditSubreddit), kept here
+// for convenience + display.
 model Product {
   id           String   @id @default(uuid())
   userId       String   @map("user_id") @db.Uuid
   name         String   @default("")
   description  String
-  intelligence Json     // Full OpenAI product intelligence response
-  queries      Json     // { redditGlobal, redditSubreddit, hackernews }
-  subreddits   String[]
+  productUrl   String?  @map("product_url")
+  intelligence Json     // ProductIntelligence
+  queries      Json     // QueryBundle (per-platform site: queries)
+  subreddits   String[] // derived from queries.redditSubreddit keys
+  lastSearchedAt DateTime? @map("last_searched_at")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  user         Profile    @relation(fields: [userId], references: [id])
-  crawlJobs    CrawlJob[]
+  user         Profile  @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@map("products")
-}
-
-// ── Crawl Jobs (reference for gateway) ───────────────────
-model CrawlJob {
-  id            String   @id @default(uuid())
-  userId        String   @map("user_id") @db.Uuid
-  productId     String?  @map("product_id")
-  keywords      String[]
-  sources       SourceType[]
-  status        JobStatus @default(pending)
-  createdAt     DateTime  @default(now()) @map("created_at")
-  startedAt     DateTime? @map("started_at")
-  completedAt   DateTime? @map("completed_at")
-  errorMessage  String?   @map("error_message")
-  metadata      Json      @default("{}")
-
-  user          Profile   @relation(fields: [userId], references: [id])
-  product       Product?  @relation(fields: [productId], references: [id])
-
-  @@index([userId])
-  @@index([productId])
-  @@index([status])
-  @@index([createdAt(sort: Desc)])
-  @@map("crawl_jobs")
-}
-
-enum JobStatus {
-  pending
-  running
-  completed
-  failed
-  cancelled
-}
-
-enum SourceType {
-  reddit
-  hackernews
-  linkedin
 }

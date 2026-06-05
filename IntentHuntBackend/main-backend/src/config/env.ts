@@ -17,6 +17,15 @@ const EnvSchema = z.object({
   // Internal service URLs
   KEYWORD_SERVICE_URL: z.string().url().default('http://localhost:3002'),
   CRAWLER_SERVICE_URL: z.string().url().default('http://localhost:3001'),
+
+  // Dodo Payments (Merchant of Record)
+  // - API key: from Dodo dashboard → Developers → API Keys
+  // - Webhook secret: Svix-format `whsec_...` from the configured webhook endpoint
+  // - Mode: "test" uses test.dodopayments.com base URL; "live" uses production
+  DODO_API_KEY:          z.string().min(1, 'DODO_API_KEY is required'),
+  DODO_WEBHOOK_SECRET:   z.string().min(1, 'DODO_WEBHOOK_SECRET is required'),
+  DODO_MODE:             z.enum(['test', 'live']).default('test'),
+  APP_URL:               z.string().url().default('http://localhost:8080'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
