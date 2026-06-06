@@ -74,13 +74,21 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     reply.setCookie("refresh_token", tokens.refreshToken, {
       httpOnly: true,
       secure: process.env["NODE_ENV"] === "production",
-      sameSite: "strict",
+      // Cross-origin cookies (Netlify frontend → Cloud Run backend) require
+      // SameSite=None + Secure in production. Keep "lax" in dev so localhost
+      // browsers still send the cookie on top-level navigation.
+      sameSite: process.env["NODE_ENV"] === "production" ? "none" : "lax",
       path: "/api/v1/auth/refresh",
       maxAge: 7 * 24 * 60 * 60, // 7 days
     });
 
+    // Also include refreshToken in body — modern browsers block third-party
+    // cookies, and the frontend's origin differs from the backend's. Frontend
+    // stores it in localStorage as a fallback; the httpOnly cookie still gets
+    // set for users / setups where it works.
     reply.send({
       accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       expiresIn: tokens.expiresIn,
       user: tokens.user,
     });
@@ -104,13 +112,21 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     reply.setCookie("refresh_token", tokens.refreshToken, {
       httpOnly: true,
       secure: process.env["NODE_ENV"] === "production",
-      sameSite: "strict",
+      // Cross-origin cookies (Netlify frontend → Cloud Run backend) require
+      // SameSite=None + Secure in production. Keep "lax" in dev so localhost
+      // browsers still send the cookie on top-level navigation.
+      sameSite: process.env["NODE_ENV"] === "production" ? "none" : "lax",
       path: "/api/v1/auth/refresh",
       maxAge: 7 * 24 * 60 * 60,
     });
 
+    // Also include refreshToken in body — modern browsers block third-party
+    // cookies, and the frontend's origin differs from the backend's. Frontend
+    // stores it in localStorage as a fallback; the httpOnly cookie still gets
+    // set for users / setups where it works.
     reply.send({
       accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       expiresIn: tokens.expiresIn,
       user: tokens.user,
     });
@@ -138,13 +154,21 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     reply.setCookie("refresh_token", tokens.refreshToken, {
       httpOnly: true,
       secure: process.env["NODE_ENV"] === "production",
-      sameSite: "strict",
+      // Cross-origin cookies (Netlify frontend → Cloud Run backend) require
+      // SameSite=None + Secure in production. Keep "lax" in dev so localhost
+      // browsers still send the cookie on top-level navigation.
+      sameSite: process.env["NODE_ENV"] === "production" ? "none" : "lax",
       path: "/api/v1/auth/refresh",
       maxAge: 7 * 24 * 60 * 60,
     });
 
+    // Also include refreshToken in body — modern browsers block third-party
+    // cookies, and the frontend's origin differs from the backend's. Frontend
+    // stores it in localStorage as a fallback; the httpOnly cookie still gets
+    // set for users / setups where it works.
     reply.send({
       accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       expiresIn: tokens.expiresIn,
       user: tokens.user,
     });
@@ -192,13 +216,21 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     reply.setCookie("refresh_token", tokens.refreshToken, {
       httpOnly: true,
       secure: process.env["NODE_ENV"] === "production",
-      sameSite: "strict",
+      // Cross-origin cookies (Netlify frontend → Cloud Run backend) require
+      // SameSite=None + Secure in production. Keep "lax" in dev so localhost
+      // browsers still send the cookie on top-level navigation.
+      sameSite: process.env["NODE_ENV"] === "production" ? "none" : "lax",
       path: "/api/v1/auth/refresh",
       maxAge: 7 * 24 * 60 * 60,
     });
 
+    // Also include refreshToken in body — modern browsers block third-party
+    // cookies, and the frontend's origin differs from the backend's. Frontend
+    // stores it in localStorage as a fallback; the httpOnly cookie still gets
+    // set for users / setups where it works.
     reply.send({
       accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       expiresIn: tokens.expiresIn,
       user: tokens.user,
     });
