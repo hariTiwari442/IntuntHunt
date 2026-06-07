@@ -263,7 +263,7 @@ export async function resetPassword(accessToken: string, newPassword: string): P
 // ── OAuth (Google / GitHub) ─────────────────────────────
 
 export async function getOAuthUrl(
-  provider: 'google' | 'github',
+  provider: 'google',
   redirectTo: string,
 ): Promise<OAuthResult> {
   const { data, error } = await supabase.auth.signInWithOAuth({

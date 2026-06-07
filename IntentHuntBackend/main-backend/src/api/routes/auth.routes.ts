@@ -43,7 +43,7 @@ const RefreshSchema = z.object({
 });
 
 const OAuthSchema = z.object({
-  provider: z.enum(["google", "github"]),
+  provider: z.enum(["google"]),
   redirectTo: z.string().url("redirectTo must be a valid URL"),
 });
 
@@ -198,7 +198,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     reply.send(result);
   });
 
-  // POST /auth/oauth — get redirect URL for Google/GitHub
+  // POST /auth/oauth — get redirect URL for Google sign-in
   app.post("/oauth", async (request, reply) => {
     const body = OAuthSchema.parse(request.body);
     const result = await authService.getOAuthUrl(
