@@ -20,9 +20,9 @@ const LoginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-const VerifyOtpSchema = z.object({
-  email: z.string().email("Invalid email"),
-  token: z.string().length(6, "OTP must be 6 digits"),
+const MagicCallbackSchema = z.object({
+  accessToken:  z.string().min(1, "accessToken is required"),
+  refreshToken: z.string().min(1, "refreshToken is required"),
 });
 
 const ForgotPasswordSchema = z.object({
@@ -51,7 +51,7 @@ const OAuthCallbackSchema = z.object({
   code: z.string().min(1, "Authorization code is required"),
 });
 
-const ResendOtpSchema = z.object({
+const ResendVerificationSchema = z.object({
   email: z.string().email("Invalid email"),
 });
 
@@ -146,38 +146,38 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  // POST /auth/verify-email
-  app.post("/verify-email", async (request, reply) => {
-    const body = VerifyOtpSchema.parse(request.body);
-    const tokens = await authService.verifyEmailOtp(body.email, body.token);
+  // POST /auth/magic-callback
+  // Frontend's /auth/callback page calls this after Supabase redirects from
+  // the magic link with tokens in the URL hash. We validate the access token
+  // (proves the user actually owns the email), ensure the profile exists,
+  // and hand back the same shape /login returns.
+  app.post("/magic-callback", async (request, reply) => {
+    const body = MagicCallbackSchema.parse(request.body);
+    const tokens = await authService.verifyMagicLink(
+      body.accessToken,
+      body.refreshToken,
+    );
 
     reply.setCookie("refresh_token", tokens.refreshToken, {
       httpOnly: true,
       secure: process.env["NODE_ENV"] === "production",
-      // Cross-origin cookies (Netlify frontend → Cloud Run backend) require
-      // SameSite=None + Secure in production. Keep "lax" in dev so localhost
-      // browsers still send the cookie on top-level navigation.
       sameSite: process.env["NODE_ENV"] === "production" ? "none" : "lax",
       path: "/api/v1/auth/refresh",
       maxAge: 7 * 24 * 60 * 60,
     });
 
-    // Also include refreshToken in body — modern browsers block third-party
-    // cookies, and the frontend's origin differs from the backend's. Frontend
-    // stores it in localStorage as a fallback; the httpOnly cookie still gets
-    // set for users / setups where it works.
     reply.send({
-      accessToken: tokens.accessToken,
+      accessToken:  tokens.accessToken,
       refreshToken: tokens.refreshToken,
-      expiresIn: tokens.expiresIn,
-      user: tokens.user,
+      expiresIn:    tokens.expiresIn,
+      user:         tokens.user,
     });
   });
 
-  // POST /auth/resend-otp
-  app.post("/resend-otp", async (request, reply) => {
-    const body = ResendOtpSchema.parse(request.body);
-    const result = await authService.resendOtp(body.email);
+  // POST /auth/resend-verification — re-sends the magic link
+  app.post("/resend-verification", async (request, reply) => {
+    const body = ResendVerificationSchema.parse(request.body);
+    const result = await authService.resendVerificationEmail(body.email);
     reply.send(result);
   });
 

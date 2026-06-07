@@ -1,7 +1,13 @@
 import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { prisma } from '../db/prisma.client.js';
 import { logger } from '../utils/logger.js';
+import { env } from '../config/env.js';
 import { BadRequestError, UnauthorizedError, ConflictError } from '../utils/errors.js';
+
+// All signup/resend flows redirect the magic link back to this single
+// frontend route. The page reads the access_token + refresh_token from
+// the URL hash and POSTs them to /auth/magic-callback to finalize.
+const MAGIC_LINK_REDIRECT = `${env.APP_URL}/auth/callback`;
 
 // ── Types ────────────────────────────────────────────────
 
@@ -44,23 +50,36 @@ export async function signup(input: SignupInput): Promise<{ message: string }> {
     throw new ConflictError('An account with this email already exists');
   }
 
-  // Create user in Supabase Auth
-  const { data, error } = await supabaseAdmin.auth.admin.createUser({
+  // Use the regular `auth.signUp` (not admin.createUser) so Supabase sends
+  // the confirmation EMAIL itself, with `emailRedirectTo` pointing at our
+  // frontend's /auth/callback. The email contains a magic link — clicking
+  // it confirms the email AND issues a session in one step, redirecting
+  // the user back to us with tokens in the URL hash.
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    email_confirm: false, // user must verify via OTP
-    user_metadata: { name: name ?? '' },
+    options: {
+      emailRedirectTo: MAGIC_LINK_REDIRECT,
+      data: { name: name ?? '' },
+    },
   });
 
   if (error) {
     logger.error({ err: error }, 'Supabase signup failed');
-    if (error.message.includes('already registered')) {
+    if (error.message.toLowerCase().includes('already registered') ||
+        error.message.toLowerCase().includes('user already')) {
       throw new ConflictError('An account with this email already exists');
     }
     throw new BadRequestError(error.message);
   }
 
-  // Create profile in our DB (upsert to handle retried signups gracefully)
+  if (!data.user) {
+    throw new BadRequestError('Signup did not create a user');
+  }
+
+  // Create profile in our DB (upsert handles retried signups). Profile is
+  // created BEFORE email verification — that's fine; plan-enforcement gates
+  // off planStatus, not email_confirmed.
   await prisma.profile.upsert({
     where: { id: data.user.id },
     update: {},
@@ -71,13 +90,7 @@ export async function signup(input: SignupInput): Promise<{ message: string }> {
     },
   });
 
-  // Send OTP for email verification
-  const { error: otpError } = await supabase.auth.signInWithOtp({ email });
-  if (otpError) {
-    logger.warn({ err: otpError }, 'Failed to send verification OTP');
-  }
-
-  return { message: 'Account created. Check your email for verification OTP.' };
+  return { message: 'Account created. Check your email for a verification link.' };
 }
 
 // ── Login ───────────────────────────────────────────────
@@ -151,25 +164,39 @@ export async function logout(accessToken: string): Promise<void> {
   }
 }
 
-// ── Verify Email OTP ────────────────────────────────────
-
-export async function verifyEmailOtp(email: string, token: string): Promise<AuthTokens> {
-  const { data, error } = await supabase.auth.verifyOtp({
-    email,
-    token,
-    type: 'email',
-  });
-
-  if (error || !data.session) {
-    throw new BadRequestError('Invalid or expired OTP');
+// ── Magic Link Callback ─────────────────────────────────
+// Called by the frontend's /auth/callback page after the user clicks
+// the magic link in their email. Supabase has already verified the link
+// and dropped a real (Supabase) session in the URL hash; we just adopt
+// those tokens as our own — they ARE the session.
+export async function verifyMagicLink(
+  accessToken:  string,
+  refreshToken: string,
+): Promise<AuthTokens> {
+  // Validate the access token by asking Supabase who it belongs to. This
+  // also doubles as a forgery check — a tampered token would fail here.
+  const { data: userData, error } = await supabase.auth.getUser(accessToken);
+  if (error || !userData.user) {
+    throw new UnauthorizedError('Invalid or expired magic link');
   }
+  const user = userData.user;
 
-  const profile = await ensureProfile(data.user!.id, email);
+  // Ensure profile exists (signup creates it pre-verification, but if a
+  // user somehow lands here without one — e.g. they were created via
+  // admin or a third party — we self-heal).
+  const profile = await ensureProfile(
+    user.id,
+    user.email ?? '',
+    user.user_metadata?.['name'] as string | undefined,
+  );
 
+  // Supabase doesn't separately tell us the expires_in for an externally-
+  // delivered token, so we hand back the standard hour (matches Supabase's
+  // default) — the frontend's refresh interceptor handles drift.
   return {
-    accessToken:  data.session.access_token,
-    refreshToken: data.session.refresh_token,
-    expiresIn:    data.session.expires_in,
+    accessToken,
+    refreshToken,
+    expiresIn: 3600,
     user: {
       id:        profile.id,
       email:     profile.email,
@@ -180,17 +207,21 @@ export async function verifyEmailOtp(email: string, token: string): Promise<Auth
   };
 }
 
-// ── Resend OTP ──────────────────────────────────────────
-
-export async function resendOtp(email: string): Promise<{ message: string }> {
-  const { error } = await supabase.auth.signInWithOtp({ email });
+// ── Resend Verification Link ────────────────────────────
+// Renamed from "resendOtp" — now triggers a fresh magic link instead.
+export async function resendVerificationEmail(email: string): Promise<{ message: string }> {
+  const { error } = await supabase.auth.resend({
+    type:    'signup',
+    email,
+    options: { emailRedirectTo: MAGIC_LINK_REDIRECT },
+  });
 
   if (error) {
-    logger.warn({ email, err: error }, 'Resend OTP failed');
-    throw new BadRequestError('Failed to send OTP. Please try again.');
+    logger.warn({ email, err: error }, 'Resend verification email failed');
+    throw new BadRequestError('Failed to send verification email. Please try again.');
   }
 
-  return { message: 'OTP sent to your email.' };
+  return { message: 'Verification email sent.' };
 }
 
 // ── Forgot Password ─────────────────────────────────────
