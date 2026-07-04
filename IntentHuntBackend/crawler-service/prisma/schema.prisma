@@ -9,7 +9,7 @@ datasource db {
 
 // ── Enums ────────────────────────────────────────────────
 
-enum JobStatus {
+enum SearchRunStatus {
   pending
   running
   completed
@@ -17,91 +17,162 @@ enum JobStatus {
   cancelled
 }
 
-enum TaskStatus {
-  pending
-  running
-  completed
-  failed
-  dead
+enum Platform {
+  reddit
+  linkedin
+  twitter
 }
 
-enum SourceType {
-  reddit
-  hackernews
-  linkedin
+enum LeadType {
+  hot
+  warm
+  possible
+  unlikely
+  not_a_lead
+}
+
+enum ReplyOpportunity {
+  comment
+  dm
+  both
+  none
+}
+
+enum LeadStatus {
+  new
+  viewed
+  replied
+  dismissed
 }
 
 // ── Models ───────────────────────────────────────────────
 
-model CrawlJob {
-  id           String    @id @default(uuid()) @db.Uuid
-  userId       String    @map("user_id") @db.Uuid
-  keywords     String[]
-  sources      SourceType[]
-  status       JobStatus  @default(pending)
-  startedAt    DateTime?  @map("started_at")
-  completedAt  DateTime?  @map("completed_at")
-  errorMessage String?    @map("error_message")
-  metadata     Json?
-  createdAt    DateTime   @default(now()) @map("created_at")
+/// Product reference — same table as main-backend.
+/// Crawler-service reads description + cached intelligence/queries to
+/// decide whether to re-run Step 1 (keyword engine) on every "Find Leads".
+model Product {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id") @db.Uuid
+  name           String   @default("")
+  description    String
+  productUrl     String?  @map("product_url")
+  intelligence   Json
+  queries        Json
+  subreddits     String[]
+  lastSearchedAt DateTime? @map("last_searched_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  tasks CrawlTask[]
-  posts Post[]
+  @@map("products")
+}
 
-  @@index([userId])
+/// One pipeline run per "Find Leads" click. Tracks progress + counts so the
+/// frontend can show "X of Y processed" while leads stream in via Realtime.
+model SearchRun {
+  id             String          @id @default(uuid()) @db.Uuid
+  productId      String          @map("product_id") @db.Uuid
+  userId         String          @map("user_id") @db.Uuid
+  status         SearchRunStatus @default(pending)
+  // Step counts (filled progressively)
+  queriesUsed    Int             @default(0) @map("queries_used")
+  urlsFound      Int             @default(0) @map("urls_found")     // after Step 2 + dedup
+  urlsPreScored  Int             @default(0) @map("urls_pre_scored") // after Step 3 (~40)
+  totalUrls      Int?            @map("total_urls")                  // set after Step 3, drives "X of Y"
+  processedUrls  Int             @default(0) @map("processed_urls")  // process-lead workers tick this
+  leadsScored    Int             @default(0) @map("leads_scored")    // score >= leadType threshold
+  leadsReplied   Int             @default(0) @map("leads_replied")   // got a suggestedReply
+  // Cost + error
+  costCents      Int             @default(0) @map("cost_cents")
+  errorMessage   String?         @map("error_message")
+  // Timing
+  startedAt      DateTime        @default(now()) @map("started_at")
+  completedAt    DateTime?       @map("completed_at")
+
+  leads          Lead[]
+
+  @@index([productId, startedAt(sort: Desc)])
+  @@index([userId, startedAt(sort: Desc)])
   @@index([status])
-  @@map("crawl_jobs")
+  @@map("search_runs")
 }
 
-model CrawlTask {
-  id            String     @id @default(uuid()) @db.Uuid
-  jobId         String     @map("job_id") @db.Uuid
-  source        SourceType
-  keyword       String
-  status        TaskStatus @default(pending)
-  attempts      Int        @default(0)
-  maxAttempts   Int        @default(3) @map("max_attempts")
-  bullmqJobId   String?    @map("bullmq_job_id")
-  lastAttemptAt DateTime?  @map("last_attempt_at")
-  nextAttemptAt DateTime?  @map("next_attempt_at")
-  completedAt   DateTime?  @map("completed_at")
-  resultCount   Int        @default(0) @map("result_count")
-  errorMessage  String?    @map("error_message")
-  createdAt     DateTime   @default(now()) @map("created_at")
+/// One lead = one URL we found, fetched, and scored.
+/// Inserted by the process-lead worker → Realtime push to frontend.
+/// Updated by reply-gen worker → Realtime update.
+model Lead {
+  id                    String           @id @default(uuid()) @db.Uuid
+  productId             String           @map("product_id") @db.Uuid
+  searchRunId           String           @map("search_run_id") @db.Uuid
+  // Source
+  url                   String
+  platform              Platform
+  subreddit             String?
+  // Post content (from Step 4)
+  title                 String
+  content               String?
+  author                String?
+  authorProfileUrl      String?          @map("author_profile_url")
+  postScore             Int              @default(0) @map("post_score")
+  commentCount          Int              @default(0) @map("comment_count")
+  postedAt              DateTime?        @map("posted_at")
+  topComments           Json?            @map("top_comments")
+  // Snippet pre-score (Step 3)
+  preScore              Int              @default(0) @map("pre_score")
+  googleSnippet         String?          @map("google_snippet")
+  querySource           String?          @map("query_source")
+  // Deep score (Step 5)
+  intentScore           Int              @default(0) @map("intent_score")
+  leadType              LeadType         @default(not_a_lead) @map("lead_type")
+  reasoning             String?
+  replyOpportunity      ReplyOpportunity @default(none) @map("reply_opportunity")
+  suggestedAngle        String?          @map("suggested_angle")
+  isCompetitorThread    Boolean          @default(false) @map("is_competitor_thread")
+  // Reply (Step 6)
+  suggestedReply        String?          @map("suggested_reply")
+  replyConfidenceNote   String?          @map("reply_confidence_note")
+  // User actions
+  status                LeadStatus       @default(new)
+  userReplied           Boolean          @default(false) @map("user_replied")
+  userReplyText         String?          @map("user_reply_text")
+  repliedAt             DateTime?        @map("replied_at")
+  // User-applied tags (multi-select chips). Free-form for now but UI uses a
+  // fixed set of 8: hot_priority, saved, replied, follow_up, not_a_fit,
+  // already_contacted, custom_reply, has_note.
+  tags                  String[]         @default([])
+  // Set on first "Open Post" click — auto-marks viewed for muted styling.
+  viewedAt              DateTime?        @map("viewed_at")
+  // Free-form user note — anything the user wants to remember about this lead.
+  userNote              String?          @map("user_note")
+  // Progressive-enhancement timestamps — UI uses these to show per-card state.
+  // contentFetchedAt = null → still showing snippet only ("State A")
+  // contentFetchedAt set, deepScoredAt = null → has full content, no AI score yet ("State B")
+  // deepScoredAt set, replyGeneratedAt = null → fully scored, reply pending or skipped ("State C")
+  // replyGeneratedAt set → everything complete ("State D")
+  preScoredAt           DateTime         @default(now()) @map("pre_scored_at")
+  contentFetchedAt      DateTime?        @map("content_fetched_at")
+  deepScoredAt          DateTime?        @map("deep_scored_at")
+  replyGeneratedAt      DateTime?        @map("reply_generated_at")
+  // Timing
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
 
-  job   CrawlJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  posts Post[]
+  searchRun             SearchRun        @relation(fields: [searchRunId], references: [id], onDelete: Cascade)
 
-  @@unique([jobId, source, keyword])
-  @@index([jobId, status])
-  @@map("crawl_tasks")
+  @@unique([productId, url])
+  @@index([productId, intentScore(sort: Desc)])
+  @@index([searchRunId])
+  @@index([productId, leadType])
+  @@map("leads")
 }
 
-model Post {
-  id             String     @id @default(uuid()) @db.Uuid
-  jobId          String     @map("job_id") @db.Uuid
-  taskId         String     @map("task_id") @db.Uuid
-  source         SourceType
-  externalId     String     @map("external_id")
-  keyword        String
-  title          String
-  content        String?
-  author         String?
-  url            String?
-  score          Int?
-  commentCount   Int?       @map("comment_count")
-  subreddit      String?
-  postedAt       DateTime?  @map("posted_at")
-  fetchedAt      DateTime   @default(now()) @map("fetched_at")
-  intentScore    Decimal?   @map("intent_score") @db.Decimal(5, 2)
-  suggestedReply String?    @map("suggested_reply")
-  strategy       String?
-  rawData        Json?      @map("raw_data")
+/// Dedup table: skip URLs we've already processed for this product.
+/// Cleared when product description changes significantly (optional, manual).
+model SeenUrl {
+  url        String
+  productId  String   @map("product_id") @db.Uuid
+  firstSeen  DateTime @default(now()) @map("first_seen")
 
-  job  CrawlJob  @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  task CrawlTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@unique([jobId, source, externalId])
-  @@index([jobId, intentScore(sort: Desc)])
-  @@map("posts")
+  @@id([url, productId])
+  @@index([productId])
+  @@map("seen_urls")
 }

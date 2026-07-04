@@ -118,7 +118,7 @@ export function HeroAuthCTA() {
     >
       <Link href="/auth/signup">
         <Button size="lg">
-          Start finding buyers — free
+          Start finding conversations — free
           <ArrowRight className="w-5 h-5" />
         </Button>
       </Link>
@@ -127,7 +127,7 @@ export function HeroAuthCTA() {
         No credit card required
         <span className="text-text-tertiary/60">·</span>
         <Check size={13} strokeWidth={3} className="text-accent" />
-        30-day free trial
+        14-day free trial
         <span className="text-text-tertiary/60">·</span>
         <a
           href="#demo-video"
@@ -162,13 +162,22 @@ export function FinalAuthCTA() {
 
   return (
     <>
-      <h2 className="text-3xl font-bold mb-4">Ready to find your next customers?</h2>
-      <p className="text-text-secondary mb-8">
-        Stop losing customers to competitors who reply first. Start capturing high-intent leads today.
+      <h2 className="text-3xl md:text-4xl font-bold mb-4">
+        Stop scrolling threads for conversations to join.
+      </h2>
+      <p className="text-text-secondary mb-8 max-w-xl mx-auto leading-relaxed">
+        LeadPulse finds relevant discussions across Reddit, LinkedIn &amp; Twitter while you sleep —
+        and drafts a thoughtful comment you can review and post yourself. Be the first helpful voice in the thread.
       </p>
       <Link href="/auth/signup">
-        <Button size="lg">Start free trial &rarr;</Button>
+        <Button size="lg">
+          Find conversations to join
+          <ArrowRight className="w-5 h-5" />
+        </Button>
       </Link>
+      <p className="text-xs text-text-tertiary mt-4">
+        14-day free trial · No credit card · Cancel anytime
+      </p>
     </>
   );
 }

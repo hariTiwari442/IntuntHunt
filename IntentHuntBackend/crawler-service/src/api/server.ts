@@ -14,8 +14,7 @@ import rateLimit from '@fastify/rate-limit';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 import { errorHandler } from './middleware/error.middleware.js';
-import { jobsRoutes } from './routes/jobs.routes.js';
-import { postsRoutes } from './routes/posts.routes.js';
+import { leadEngineRoutes } from './routes/find-leads.routes.js';
 import { prisma } from '../db/prisma.client.js';
 import { redisClient } from '../cache/redis.client.js';
 
@@ -52,8 +51,7 @@ async function buildServer() {
   });
 
   // ---- Routes ----
-  await app.register(jobsRoutes,  { prefix: '/api/v1/jobs' });
-  await app.register(postsRoutes, { prefix: '/api/v1/posts' });
+  await app.register(leadEngineRoutes, { prefix: '/api/v1' });
 
   return app;
 }

@@ -1,0 +1,35 @@
+# fly.io config for the BullMQ orchestrator worker.
+#
+# What runs here: a long-lived Node process that polls Upstash Redis for
+# jobs and drives the Step 1 → Step 6 pipeline. No HTTP traffic (the
+# /find-leads API stays on Cloud Run; this VM only pulls jobs from Redis).
+#
+# Region: Singapore (sin) — closest fly.io PoP to our Indian users that's
+# also low-latency to Supabase Asia + Upstash. Mumbai (bom) is also an
+# option if available in your org.
+#
+# Cost: shared-cpu-1x@256MB is ~$1.94/month, but fly.io's free Hobby tier
+# includes 3 of these — so this worker is effectively free until volume grows.
+
+app            = "leadpulse-worker"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# The Dockerfile defaults to `npm run api` (because it's shared with the
+# Cloud Run API service). Override it here so this VM runs the worker.
+[processes]
+  worker = "npm run worker"
+
+# Single VM, always-on. No autoscale — BullMQ workers need to be alive to
+# poll Redis, and one VM is plenty for our job volume.
+[[vm]]
+  size      = "shared-cpu-1x"
+  memory    = "256mb"
+  cpu_kind  = "shared"
+  cpus      = 1
+  processes = ["worker"]
+
+# No [http_service] block — the worker doesn't serve HTTP. fly.io will
+# still restart the machine automatically if the Node process exits.

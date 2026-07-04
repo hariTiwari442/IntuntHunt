@@ -1,22 +1,31 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useCreateProduct } from "@/hooks/useJobs";
-import { Sparkles, Loader2, ArrowRight } from "lucide-react";
+import { Sparkles, Loader2, ArrowRight, AlertTriangle } from "lucide-react";
+
+interface PlanLimitError {
+  limit:   number;
+  current: number;
+  plan:    string;
+  message: string;
+}
 
 export default function AddProductPage() {
   const router = useRouter();
   const create = useCreateProduct();
 
-  const [productName, setProductName]   = useState("");
-  const [description, setDescription]   = useState("");
-  const [productUrl, setProductUrl]     = useState("");
-  const [error, setError]               = useState("");
+  const [productName, setProductName] = useState("");
+  const [description, setDescription] = useState("");
+  const [productUrl, setProductUrl]   = useState("");
+  const [error, setError]             = useState("");
+  const [planLimit, setPlanLimit]     = useState<PlanLimitError | null>(null);
 
   const handleCreate = async () => {
     if (description.trim().length < 20) {
@@ -24,15 +33,29 @@ export default function AddProductPage() {
       return;
     }
     setError("");
+    setPlanLimit(null);
 
-    const product = await create.mutateAsync({
-      name:        productName.trim() || undefined,
-      description: description.trim(),
-      productUrl:  productUrl.trim() || undefined,
-    });
-
-    // Jump straight to the product page — Find Leads runs Step 1 lazily.
-    router.push(`/dashboard/products/${product.id}`);
+    try {
+      const product = await create.mutateAsync({
+        name:        productName.trim() || undefined,
+        description: description.trim(),
+        productUrl:  productUrl.trim() || undefined,
+      });
+      router.push(`/dashboard/products/${product.id}`);
+    } catch (err: unknown) {
+      const e = err as { response?: { status?: number; data?: { message?: string; limit?: number; current?: number; plan?: string } } };
+      // 402 Payment Required — user hit their plan limit
+      if (e.response?.status === 402 && e.response.data?.limit !== undefined) {
+        setPlanLimit({
+          limit:   e.response.data.limit ?? 0,
+          current: e.response.data.current ?? 0,
+          plan:    e.response.data.plan ?? "starter",
+          message: e.response.data.message ?? "Plan limit reached.",
+        });
+      } else {
+        setError(e.response?.data?.message ?? "Couldn't create product. Please try again.");
+      }
+    }
   };
 
   return (
@@ -82,6 +105,38 @@ export default function AddProductPage() {
 
           {error && (
             <p className="text-xs text-red-600">{error}</p>
+          )}
+
+          {planLimit && (
+            <div className="rounded-2xl border border-accent/30 bg-accent-soft p-5">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-9 h-9 rounded-xl bg-white border border-accent/30 flex items-center justify-center shrink-0">
+                  <AlertTriangle size={18} className="text-accent" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-semibold text-text-primary mb-1">
+                    You&apos;ve hit your {planLimit.plan} plan limit
+                  </h4>
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    {planLimit.current} / {planLimit.limit} products used this month.
+                    Upgrade to add more — or wait until next month for the counter to reset.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Link href="/pricing" className="flex-1">
+                  <Button size="sm" className="w-full">
+                    See plans
+                    <ArrowRight size={14} />
+                  </Button>
+                </Link>
+                <Link href="/dashboard/products" className="flex-1">
+                  <Button variant="secondary" size="sm" className="w-full">
+                    Back to products
+                  </Button>
+                </Link>
+              </div>
+            </div>
           )}
 
           <div className="flex justify-end gap-2 pt-2">

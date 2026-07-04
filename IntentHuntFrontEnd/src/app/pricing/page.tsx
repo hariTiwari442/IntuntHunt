@@ -2,35 +2,91 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Zap, ArrowLeft, Check } from "lucide-react";
+import { PLAN_FEATURES, type PlanName } from "@/config/plans";
+import { useAuth } from "@/hooks/useAuth";
+import { openCheckout } from "@/lib/dodo";
 
-const plans = [
+interface DisplayPlan {
+  name:     PlanName;
+  label:    string;
+  monthly:  number;
+  annual:   number;
+  features: string[];
+  popular:  boolean;
+}
+
+const DISPLAY_PLANS: DisplayPlan[] = [
   {
-    name: "Starter",
-    price: 0,
+    name: "starter",
+    label: "Starter",
+    monthly: 0,
     annual: 0,
-    features: ["1 product", "3 crawls/month", "Reddit only", "50 posts stored", "No AI replies"],
+    features: ["1 product", "3 searches/month", "Reddit only", "50 conversations stored", "No AI replies"],
     popular: false,
   },
   {
-    name: "Pro",
-    price: 29,
-    annual: 24,
-    features: ["5 products", "20 crawls/month", "Reddit + LinkedIn + Twitter", "1,000 posts stored", "Unlimited AI replies"],
+    name: "pro",
+    label: "Pro",
+    monthly: 9,
+    annual: 8.25,
+    features: ["5 products", "20 searches/month", "Reddit + LinkedIn + Twitter", "1,000 conversations stored", "Unlimited AI-drafted replies"],
     popular: true,
   },
   {
-    name: "Agency",
-    price: 79,
+    name: "agency",
+    label: "Agency",
+    monthly: 79,
     annual: 66,
-    features: ["Unlimited products", "Unlimited crawls", "All sources", "10,000 posts stored", "Unlimited AI replies"],
+    features: ["Unlimited products", "Unlimited searches", "All sources", "10,000 conversations stored", "Priority support"],
     popular: false,
   },
 ];
 
 export default function PricingPage() {
-  const [isAnnual, setIsAnnual] = useState(true);
+  const [isAnnual, setIsAnnual]   = useState(true);
+  const [loadingPlan, setLoadingPlan] = useState<PlanName | null>(null);
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  const handleSelectPlan = async (planName: PlanName) => {
+    // Free Starter plan — just send to signup
+    if (planName === "starter") {
+      router.push("/auth/signup");
+      return;
+    }
+
+    // Paid plan — must be logged in so the subscription attaches to their account
+    if (!isAuthenticated) {
+      router.push(`/auth/signup?plan=${planName}&billing=${isAnnual ? "annual" : "monthly"}`);
+      return;
+    }
+
+    const dodoConfig = PLAN_FEATURES[planName].dodo;
+    const productId  = isAnnual ? dodoConfig?.annual : dodoConfig?.monthly;
+
+    if (!productId) {
+      // Plan not yet configured in Dodo (e.g. Agency tier still being set up)
+      alert(
+        `${PLAN_FEATURES[planName].label} plan isn't ready yet. ` +
+        `Please reach out and we'll set it up for you.`,
+      );
+      return;
+    }
+
+    try {
+      setLoadingPlan(planName);
+      // openCheckout will redirect the browser to Dodo's hosted checkout page.
+      // We don't reach the finally block in the success case.
+      await openCheckout({ productId });
+    } catch (err) {
+      console.error("[pricing] failed to open checkout", err);
+      alert("Couldn't open checkout. Please try again or contact support.");
+      setLoadingPlan(null);
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -54,8 +110,8 @@ export default function PricingPage() {
             </div>
             <span className="font-bold">LeadPulse</span>
           </div>
-          <Link href="/auth/signup">
-            <Button size="sm">Get started</Button>
+          <Link href={isAuthenticated ? "/dashboard" : "/auth/signup"}>
+            <Button size="sm">{isAuthenticated ? "Dashboard" : "Get started"}</Button>
           </Link>
         </div>
       </header>
@@ -79,52 +135,67 @@ export default function PricingPage() {
               />
             </button>
             <span className={`text-sm ${isAnnual ? "text-text-primary font-medium" : "text-text-secondary"}`}>
-              Annual <span className="text-accent text-xs ml-1">Save 17%</span>
+              Annual <span className="text-accent text-xs ml-1">Save ~8%</span>
             </span>
           </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6">
-          {plans.map((plan) => (
-            <div
-              key={plan.name}
-              className={`relative rounded-2xl p-6 ${
-                plan.popular
-                  ? "bg-accent-soft border-2 border-accent md:-mt-4 md:pb-10 shadow-lg"
-                  : "card"
-              }`}
-            >
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-accent text-white text-xs font-bold">
-                  POPULAR
+          {DISPLAY_PLANS.map((plan) => {
+            const isLoading = loadingPlan === plan.name;
+            const isFree    = plan.monthly === 0;
+
+            return (
+              <div
+                key={plan.name}
+                className={`relative rounded-2xl p-6 ${
+                  plan.popular
+                    ? "bg-accent-soft border-2 border-accent md:-mt-4 md:pb-10 shadow-lg"
+                    : "card"
+                }`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-accent text-white text-xs font-bold">
+                    POPULAR
+                  </div>
+                )}
+                <h3 className="text-xl font-bold mb-1">{plan.label}</h3>
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-3xl font-bold">
+                    ${isAnnual ? plan.annual : plan.monthly}
+                  </span>
+                  {!isFree && <span className="text-text-secondary">/mo</span>}
                 </div>
-              )}
-              <h3 className="text-xl font-bold mb-1">{plan.name}</h3>
-              <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-3xl font-bold">
-                  ${isAnnual ? plan.annual : plan.price}
-                </span>
-                {plan.price > 0 && <span className="text-text-secondary">/mo</span>}
-              </div>
-              <Link href="/auth/signup">
+
                 <Button
                   className="w-full mb-6"
                   variant={plan.popular ? "primary" : "secondary"}
+                  onClick={() => handleSelectPlan(plan.name)}
+                  disabled={isLoading}
                 >
-                  {plan.price === 0 ? "Get started" : "Start free trial"}
+                  {isLoading
+                    ? "Opening checkout…"
+                    : isFree
+                      ? "Get started"
+                      : "Start free trial"}
                 </Button>
-              </Link>
-              <ul className="space-y-3 text-sm">
-                {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-center gap-2">
-                    <Check size={16} className="text-accent shrink-0" />
-                    <span className="text-text-secondary">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+
+                <ul className="space-y-3 text-sm">
+                  {plan.features.map((feature, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <Check size={16} className="text-accent shrink-0" />
+                      <span className="text-text-secondary">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
         </div>
+
+        <p className="text-center text-xs text-text-tertiary mt-10 max-w-md mx-auto">
+          All paid plans include a 14-day free trial. No credit card required to start. Cancel anytime from your account settings.
+        </p>
       </main>
     </div>
   );

@@ -1,0 +1,81 @@
+{
+  "intelligence": {
+    "productName": "Repeatly",
+    "productType": "consumer_extension",
+    "category": "YouTube loop extension",
+    "problem": "I want to loop specific sections of YouTube videos without rewinding manually",
+    "audience": "Musicians, language learners, students practicing from YouTube tutorials",
+    "pains": [
+      "I keep rewinding to the same 10 seconds of a guitar tutorial",
+      "YouTube only lets you loop the whole video, not a section",
+      "my current loop extension broke after a Chrome update",
+      "I need to loop multiple sections back to back",
+      "manually scrubbing back every time is exhausting"
+    ],
+    "alternatives": [
+      "Looper for YouTube",
+      "AB Repeat Player",
+      "Enhancer for YouTube"
+    ],
+    "triggers": [
+      "Started learning guitar from YouTube",
+      "Existing loop extension got removed from Chrome store",
+      "Practicing dance choreography section by section"
+    ],
+    "searchPhrases": [
+      "loop part of youtube video",
+      "youtube ab repeat chrome",
+      "repeat section youtube",
+      "youtube loop extension"
+    ]
+  },
+  "queries": {
+    "redditGlobal": [
+      "youtube loop extension",
+      "youtube ab repeat",
+      "Looper for YouTube alternative",
+      "loop section youtube video",
+      "youtube repeat chrome extension",
+      "AB Repeat Player youtube"
+    ],
+    "redditSubreddit": {
+      "chrome_extensions": [
+        "youtube loop",
+        "youtube repeat"
+      ],
+      "youtube": [
+        "loop section",
+        "ab repeat"
+      ],
+      "guitarlessons": [
+        "loop",
+        "repeat section",
+        "slow down youtube"
+      ],
+      "languagelearning": [
+        "youtube loop",
+        "repeat video section"
+      ],
+      "musictheory": [
+        "loop youtube",
+        "repeat section"
+      ],
+      "pianolearning": [
+        "loop youtube",
+        "repeat section"
+      ],
+      "YoutubeHelp": [
+        "loop section",
+        "repeat part"
+      ]
+    },
+    "linkedin": [],
+    "twitter": [
+      "youtube loop extension"
+    ],
+    "producthunt": [
+      "youtube loop"
+    ],
+    "indiehackers": []
+  }
+}

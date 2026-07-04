@@ -1,4 +1,4 @@
-import type { SourceType } from '../types/job.types.js';
+import type { Platform } from '../pipeline/types.js';
 
 // ---- Typed application errors (API layer) ----
 
@@ -44,7 +44,7 @@ export class CrawlerError extends Error {
     message: string,
     public readonly statusCode: number | null,
     public readonly retryable: boolean,
-    public readonly source: SourceType,
+    public readonly source: Platform,
   ) {
     super(message);
     this.name = 'CrawlerError';
@@ -56,7 +56,7 @@ const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
 
 export function classifyHttpError(
   statusCode: number,
-  source: SourceType,
+  source: Platform,
   message: string,
 ): CrawlerError {
   return new CrawlerError(message, statusCode, RETRYABLE_STATUS_CODES.has(statusCode), source);

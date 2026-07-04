@@ -7,6 +7,11 @@ export type Feature =
   | "unlimited_products"
   | "multi_product";
 
+export interface DodoProductIds {
+  monthly: string | null;  // Dodo product ID for monthly billing
+  annual:  string | null;  // Dodo product ID for annual billing
+}
+
 export interface PlanFeatures {
   name: PlanName;
   label: string;
@@ -16,6 +21,7 @@ export interface PlanFeatures {
   suggestedReplies: boolean;
   features: Feature[];
   price: { monthly: number; annual: number };
+  dodo?: DodoProductIds;           // Dodo Payments product IDs (null for free plans / tiers not yet created)
 }
 
 export const PLAN_FEATURES: Record<PlanName, PlanFeatures> = {
@@ -37,7 +43,15 @@ export const PLAN_FEATURES: Record<PlanName, PlanFeatures> = {
     sources: ["Reddit", "LinkedIn", "Twitter"],
     suggestedReplies: true,
     features: ["suggested_replies", "linkedin", "twitter"],
-    price: { monthly: 29, annual: 24 },
+    // Actual Dodo prices: $9/mo, $99/year (~$8.25/mo when billed annually)
+    price: { monthly: 9, annual: 8.25 },
+    dodo: {
+      // TODO: paste your two Dodo product IDs (look like `pdt_xxxxxxxx`).
+      // Keep these in sync with the PRODUCT_ID_TO_PLAN map in
+      // main-backend/src/services/dodo.client.ts.
+      monthly: process.env.NEXT_PUBLIC_DODO_PRO_MONTHLY_ID ?? null,
+      annual:  process.env.NEXT_PUBLIC_DODO_PRO_ANNUAL_ID  ?? null,
+    },
   },
   agency: {
     name: "agency",
@@ -47,7 +61,11 @@ export const PLAN_FEATURES: Record<PlanName, PlanFeatures> = {
     sources: ["Reddit", "LinkedIn", "Twitter"],
     suggestedReplies: true,
     features: ["suggested_replies", "linkedin", "twitter", "unlimited_products", "multi_product"],
-    price: { monthly: 79, annual: 66 },
+    price: { monthly: 79, annual: 66 },  // placeholder — no Dodo product IDs yet
+    dodo: {
+      monthly: null,  // TODO: add Dodo product ID when Agency tier is created
+      annual:  null,
+    },
   },
 };
 

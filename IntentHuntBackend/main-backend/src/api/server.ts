@@ -17,6 +17,7 @@ import { errorHandler } from './middleware/error.middleware.js';
 import { authRoutes } from './routes/auth.routes.js';
 import { profileRoutes } from './routes/profile.routes.js';
 import { gatewayRoutes } from './routes/gateway.routes.js';
+import { billingRoutes } from './routes/billing.routes.js';
 import { prisma } from '../db/prisma.client.js';
 
 async function buildServer() {
@@ -33,9 +34,22 @@ async function buildServer() {
 
   // ── Plugins ───────────────────────────────────────────
   await app.register(helmet);
+
+  // CORS — explicit allow-list in production, permissive in dev.
+  // APP_URL points to the frontend; we accept both that origin and
+  // a couple of fallback dev origins.
+  const allowedOrigins: (string | RegExp)[] = env.NODE_ENV === 'production'
+    ? [
+        env.APP_URL,                              // e.g. https://intenthunt.netlify.app
+        'https://leadpulse.app',                  // future custom domain (no-op if you don't have it)
+        /\.netlify\.app$/,                        // any Netlify preview URL
+      ]
+    : true as unknown as (string | RegExp)[];     // dev: reflect any origin
+
   await app.register(cors, {
-    origin:      env.NODE_ENV === 'production' ? false : true,
+    origin: allowedOrigins,
     credentials: true, // needed for httpOnly cookies
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
   await app.register(cookie);
   await app.register(rateLimit, {
@@ -59,6 +73,7 @@ async function buildServer() {
   await app.register(authRoutes,    { prefix: '/api/v1/auth' });
   await app.register(profileRoutes, { prefix: '/api/v1/profile' });
   await app.register(gatewayRoutes, { prefix: '/api/v1/gateway' });
+  await app.register(billingRoutes, { prefix: '/api/v1/billing' });
 
   return app;
 }

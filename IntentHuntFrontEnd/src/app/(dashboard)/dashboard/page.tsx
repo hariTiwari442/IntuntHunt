@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { TrialBanner } from "@/components/dashboard/TrialBanner";
+import { PendingCheckoutResumer } from "@/components/dashboard/PendingCheckoutResumer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,6 +62,12 @@ export default function DashboardPage() {
         title={`Welcome back, ${firstName}`}
         subtitle="Here's what's happening with your lead engine today."
       />
+
+      {/* Auto-redirects to Dodo checkout if user signed up via /pricing flow */}
+      <PendingCheckoutResumer />
+
+      {/* Subscription state banner — trial countdown, past_due, canceled etc. */}
+      <TrialBanner />
 
       {/* Plan limit banner */}
       {isStarter && features.jobsPerMonth !== null && (

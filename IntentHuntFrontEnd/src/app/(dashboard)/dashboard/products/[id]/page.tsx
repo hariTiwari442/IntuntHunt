@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,9 +32,15 @@ export default function ProductDetailPage() {
   const findLeads          = useFindLeads();
   const { data: searchRun } = useSearchRun(activeSearchRunId);
 
+  // limit: 500 = the API's max — covers any product up to that size.
+  // When a product exceeds 500 leads we'll need server-computed aggregates +
+  // cursor pagination (see notes in commit history); for now this is the
+  // simplest fix and the inbox sidebar counts reflect real data.
   const { data: leadsData } = useLeads(
     productId,
-    activeSearchRunId ? { searchRunId: activeSearchRunId } : {},
+    activeSearchRunId
+      ? { searchRunId: activeSearchRunId, limit: 500 }
+      : { limit: 500 },
   );
   const initialLeads = leadsData?.leads ?? [];
   const liveLeads    = useLeadsRealtime(activeSearchRunId, initialLeads);
@@ -123,11 +130,61 @@ export default function ProductDetailPage() {
   }, [leads, cutoff24h]);
 
   // ── Find Leads ───────────────────────────────────────────────────────
-  const isRunning = searchRun
-    ? searchRun.status === "pending" || searchRun.status === "running"
-    : findLeads.isPending;
+  const queryClient = useQueryClient();
+  const runStartedAtRef = useRef<number | null>(null);
+
+  // Safety timeout: a "running" search has been spinning for >5 minutes
+  // (e.g. worker died, Supabase poll stuck). Stop the spinner so the user
+  // isn't stranded — they can re-click. Doesn't kill the DB job; the
+  // worker will still finish if it's just slow.
+  const [stalled, setStalled] = useState(false);
+
+  const isRunning = stalled
+    ? false
+    : searchRun
+      ? searchRun.status === "pending" || searchRun.status === "running"
+      : findLeads.isPending;
+
+  // When the run completes (or fails), invalidate the leads cache so the
+  // UI re-fetches from the API. This is the safety net for cases where
+  // the Realtime subscription dropped or never connected — without this,
+  // the spinner stops but the list stays stale until the user refreshes.
+  useEffect(() => {
+    if (!searchRun) return;
+    if (searchRun.status === "completed" || searchRun.status === "failed") {
+      queryClient.invalidateQueries({ queryKey: ["leads", productId] });
+      runStartedAtRef.current = null;
+      setStalled(false);
+    }
+  }, [searchRun?.status, productId, queryClient]);
+
+  // Watchdog: if the run sits in pending/running for >5 minutes, force-stop
+  // the spinner. Pulls the user out of an infinite-spin state without
+  // erroring — they see whatever leads landed and can re-click.
+  useEffect(() => {
+    if (!searchRun) return;
+    const running = searchRun.status === "pending" || searchRun.status === "running";
+    if (!running) return;
+
+    if (runStartedAtRef.current == null) {
+      runStartedAtRef.current = Date.now();
+    }
+
+    const timer = setInterval(() => {
+      const startedAt = runStartedAtRef.current;
+      if (startedAt && Date.now() - startedAt > 5 * 60 * 1000) {
+        setStalled(true);
+        queryClient.invalidateQueries({ queryKey: ["leads", productId] });
+        clearInterval(timer);
+      }
+    }, 15_000);
+
+    return () => clearInterval(timer);
+  }, [searchRun?.status, productId, queryClient]);
 
   const handleFindLeads = async () => {
+    setStalled(false);
+    runStartedAtRef.current = Date.now();
     const result = await findLeads.mutateAsync(productId);
     setActiveSearchRunId(result.searchRunId);
   };
@@ -209,8 +266,11 @@ export default function ProductDetailPage() {
         </div>
       </header>
 
-      {/* Progress bar (when running) */}
-      {searchRun && (
+      {/* Progress bar — only while actively running. Once the run hits
+          completed/failed we force the bar to 100% (independent of the
+          processedUrls/totalUrls counters, which can legitimately come
+          up short — see skipDuplicates miscount in the orchestrator). */}
+      {searchRun && (searchRun.status === "pending" || searchRun.status === "running") && (
         <div className="h-1 bg-bg-muted overflow-hidden shrink-0">
           <div
             className="h-full bg-accent transition-all duration-500"
@@ -245,6 +305,7 @@ export default function ProductDetailPage() {
           selectedLeadId={selectedLeadId}
           isRunning={isRunning}
           onSelect={setSelectedLeadId}
+          totalLeads={leadsData?.total}
         />
         <LeadDetail lead={selectedLead} />
       </div>

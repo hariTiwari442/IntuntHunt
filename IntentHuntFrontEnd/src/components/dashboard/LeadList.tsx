@@ -9,6 +9,9 @@ interface LeadListProps {
   selectedLeadId:  string | null;
   isRunning:       boolean;
   onSelect:        (id: string) => void;
+  // Optional all-time total for this product; when greater than leads.length,
+  // we show "(loaded / total)" so users don't think we lost any leads.
+  totalLeads?:     number;
 }
 
 export function LeadList({
@@ -16,14 +19,22 @@ export function LeadList({
   selectedLeadId,
   isRunning,
   onSelect,
+  totalLeads,
 }: LeadListProps) {
+  // Show "(X of Y)" only when the API returned more leads than we've loaded
+  // (default API limit is 100). Otherwise the simple "(X)" reads cleaner.
+  const showTruncatedCount = typeof totalLeads === "number" && totalLeads > leads.length;
   return (
     <div className="w-96 shrink-0 border-r border-border-default flex flex-col bg-bg-secondary">
       {/* Header */}
       <div className="flex items-center px-4 py-3 border-b border-border-default">
         <div className="flex items-center gap-2">
           <h2 className="font-semibold text-sm">Inbox</h2>
-          <span className="text-xs text-text-tertiary">({leads.length})</span>
+          <span className="text-xs text-text-tertiary">
+            {showTruncatedCount
+              ? `(${leads.length} of ${totalLeads})`
+              : `(${leads.length})`}
+          </span>
           {isRunning && <Loader2 size={12} className="animate-spin text-accent" />}
         </div>
       </div>

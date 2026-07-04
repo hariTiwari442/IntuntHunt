@@ -1,37 +1,61 @@
 /**
  * Worker process entry point.
- * Starts all BullMQ workers. Scale by running multiple instances of this process.
- * Stateless — safe to run N replicas concurrently.
+ * Starts all three lead-engine workers. Scale by running N replicas.
+ * Stateless — safe to run multiple instances concurrently.
+ *
+ * Cloud Run note:
+ *   Cloud Run requires the container to bind to $PORT for its startup
+ *   probe. Workers don't normally need an HTTP server, so we spin up a
+ *   tiny one with just /health and /readiness. Set the Cloud Run service
+ *   to `--no-cpu-throttling --min-instances 1` so BullMQ workers can
+ *   actually run continuously between HTTP requests.
  */
 
 import '../config/env.js';   // validate env vars at startup
 
-import { startOrchestratorWorker } from './orchestrator.js';
-import { startRedditWorker } from './processors/reddit.processor.js';
-import { startHNWorker } from './processors/hn.processor.js';
-import { startLinkedInWorker } from './processors/linkedin.processor.js';
-import { startDLQWorker } from '../queues/dlq.js';
+import { createServer } from 'node:http';
+import { startOrchestratorWorker } from '../workers/orchestrator.worker.js';
+import { startProcessLeadWorker }  from '../workers/process-lead.worker.js';
+import { startReplyGenWorker }     from '../workers/reply-gen.worker.js';
 import { logger } from '../utils/logger.js';
 import { prisma } from '../db/prisma.client.js';
 import { redisClient } from '../cache/redis.client.js';
 
-async function main() {
-  logger.info('Starting crawler worker process');
+const PORT = Number(process.env.PORT ?? 8080);
 
-  // Start all workers
+async function main() {
+  logger.info('Starting lead-engine worker process');
+
   const workers = [
     startOrchestratorWorker(),
-    startRedditWorker(),
-    startHNWorker(),
-    startLinkedInWorker(),
-    startDLQWorker(),
+    startProcessLeadWorker(),
+    startReplyGenWorker(),
   ];
 
   logger.info({ workerCount: workers.length }, 'All workers started');
 
-  // Graceful shutdown
+  // ── Cloud Run startup probe / health endpoint ──────────────────────
+  const healthServer = createServer((req, res) => {
+    if (req.url === '/health' || req.url === '/' || req.url === '/readiness') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({
+        status:  'ok',
+        service: 'crawler-worker',
+        workers: workers.length,
+        uptime:  process.uptime(),
+      }));
+      return;
+    }
+    res.writeHead(404).end();
+  });
+
+  healthServer.listen(PORT, '0.0.0.0', () => {
+    logger.info({ port: PORT }, 'Worker health endpoint listening');
+  });
+
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'Shutting down workers...');
+    healthServer.close();
     await Promise.all(workers.map((w) => w.close()));
     await prisma.$disconnect();
     await redisClient.quit();

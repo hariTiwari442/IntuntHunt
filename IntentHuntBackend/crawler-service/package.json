@@ -4,9 +4,14 @@
   "description": "IntentHunt crawler microservice — fetches Reddit and HN posts for keywords",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "api": "tsx src/api/server.ts",
+    "api:mock": "dotenv -e .env.mock -- tsx src/api/server.ts",
     "worker": "tsx src/worker/worker.ts",
+    "worker:mock": "dotenv -e .env.mock -- tsx src/worker/worker.ts",
     "build": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -34,6 +39,7 @@
   "devDependencies": {
     "@types/node": "^20.12.0",
     "@vitest/coverage-v8": "^1.6.0",
+    "dotenv-cli": "^11.0.0",
     "prisma": "^5.22.0",
     "tsx": "^4.11.0",
     "typescript": "^5.4.5",

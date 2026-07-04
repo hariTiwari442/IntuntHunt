@@ -11,19 +11,34 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
   const setAuth = useAuthStore((s) => s.setAuth);
   const setLoading = useAuthStore((s) => s.setLoading);
   const logout = useAuthStore((s) => s.logout);
+  // If zustand-persist already rehydrated a refreshToken from localStorage,
+  // pass it through in the body. The httpOnly cookie won't reach the backend
+  // across Netlify -> Cloud Run because Chrome blocks third-party cookies.
+  const persistedRefreshToken = useAuthStore((s) => s.refreshToken);
+  const persistedIsAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   useEffect(() => {
     async function tryRefresh() {
+      // No refresh token AND no prior auth state — user is genuinely logged
+      // out, no point in hitting /refresh (it'll just 400 with VALIDATION_ERROR
+      // and unset state we never set).
+      if (!persistedRefreshToken && !persistedIsAuthenticated) {
+        setLoading(false);
+        return;
+      }
       try {
-        const res = await api.post("/auth/refresh");
-        const { accessToken, user } = res.data;
-        setAuth(user, accessToken);
+        const res = await api.post(
+          "/auth/refresh",
+          persistedRefreshToken ? { refreshToken: persistedRefreshToken } : {},
+        );
+        const { accessToken, refreshToken: newRt, user } = res.data;
+        setAuth(user, accessToken, newRt ?? null);
       } catch {
         logout();
       }
     }
     tryRefresh();
-  }, [setAuth, setLoading, logout]);
+  }, [setAuth, setLoading, logout, persistedRefreshToken, persistedIsAuthenticated]);
 
   return <>{children}</>;
 }

@@ -2,7 +2,11 @@ import Link from "next/link";
 import { Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { HeaderAuthCTA, HeroAuthCTA, FinalAuthCTA, LandingLogoLink } from "@/components/landing/AuthCTAs";
-import { Zap, Search, BarChart3, MessageSquare, Target, TrendingUp, Check, X, Send, Inbox, Bell, Sparkles } from "lucide-react";
+import { BuyersAskingTicker } from "@/components/landing/BuyersAskingTicker";
+import { SoftwareApplicationJsonLd, FaqJsonLd } from "@/components/StructuredData";
+import { siteConfig } from "@/config/site";
+import { faqItems } from "@/config/faq";
+import { Zap, Search, BarChart3, MessageSquare, MessageCircle, Target, TrendingUp, Check, X, Send, Inbox, Bell, Sparkles, ChevronDown } from "lucide-react";
 
 const previewPosts = [
   {
@@ -34,7 +38,7 @@ const previewPosts = [
     community: "LinkedIn",
     time: "5h ago",
     tag: "Target Commenters",
-    strategy: "DM the author",
+    strategy: "Reply in thread",
   },
   {
     score: 65,
@@ -49,9 +53,9 @@ const previewPosts = [
 ];
 
 const platforms = [
-  { name: "Reddit", color: "from-orange-500 to-red-500", posts: "2M+ posts scanned" },
-  { name: "Twitter", color: "from-sky-400 to-blue-500", posts: "500K+ discussions" },
-  { name: "LinkedIn", color: "from-blue-500 to-blue-600", posts: "1M+ professional posts" },
+  { name: "Reddit",   color: "from-orange-500 to-red-500" },
+  { name: "Twitter",  color: "from-sky-400 to-blue-500"   },
+  { name: "LinkedIn", color: "from-blue-500 to-blue-600"  },
 ];
 
 const features = [
@@ -108,9 +112,9 @@ const howItWorks = [
   },
   {
     step:  "Step 3",
-    title: "Reply in seconds",
-    blurb: "Get a ranked stream of opportunities with AI-personalized DMs and comments — context-aware, ready to ship.",
-    icon:  Send,
+    title: "Join the conversation",
+    blurb: "Get a ranked feed of relevant discussions with AI-drafted comment replies — context-aware, ready for you to review, edit, and post yourself.",
+    icon:  MessageCircle,
   },
 ];
 
@@ -164,16 +168,17 @@ function Step3Visual() {
   return (
     <div className="h-full flex flex-col justify-center max-w-[92%] mx-auto">
       <div className="rounded-lg bg-bg-secondary border border-border-default px-2.5 py-2 mb-1.5 shadow-sm">
-        <div className="text-[8px] uppercase tracking-wider text-text-tertiary mb-0.5 font-semibold">
-          To · u/sarah_designs
+        <div className="text-[8px] uppercase tracking-wider text-text-tertiary mb-0.5 font-semibold flex items-center gap-1">
+          <MessageCircle size={8} strokeWidth={2.5} />
+          Suggested comment
         </div>
         <p className="text-[10px] text-text-primary leading-snug">
-          Hey Sarah — feel you on FreshBooks being overkill. The Stripe + late-fee combo…
+          The Apollo price jump caught a lot of small teams off guard. For a 2-person shop…
         </p>
       </div>
       <div className="flex justify-end">
         <button className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-md bg-accent text-white shadow">
-          Send DM
+          Open post
           <Send size={9} strokeWidth={3} />
         </button>
       </div>
@@ -184,6 +189,10 @@ function Step3Visual() {
 export default function LandingPage() {
   return (
     <div className="min-h-screen">
+      {/* SEO: rich-result structured data for this page */}
+      <SoftwareApplicationJsonLd />
+      <FaqJsonLd />
+
       {/* Background effects */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-20%] left-[10%] w-[600px] h-[600px] bg-accent/5 rounded-full blur-[150px]" />
@@ -216,8 +225,11 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="relative z-10 max-w-6xl mx-auto px-6 pt-20 pb-32">
         <div className="text-center max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-sm mb-8 animate-fade-in">
-            <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-sm mb-8 animate-float shadow-[0_8px_30px_-12px_rgba(22,163,74,0.35)] border border-accent/15">
+            <span className="relative flex w-2 h-2">
+              <span className="absolute inset-0 rounded-full bg-accent animate-ping opacity-75" />
+              <span className="relative w-2 h-2 rounded-full bg-accent" />
+            </span>
             <span className="text-text-secondary">Scanning Reddit, LinkedIn &amp; Twitter — live</span>
           </div>
 
@@ -226,19 +238,21 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-xl text-text-secondary mb-10 max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: "0.1s" }}>
-            Across <span className="text-orange-600 font-semibold">Reddit</span>, <span className="text-blue-600 font-semibold">LinkedIn</span> &amp; <span className="text-sky-600 font-semibold">Twitter</span>, LeadPulse surfaces buying-intent posts, scores them, and writes a personalized DM in seconds — so you can reply before anyone else.
+            Across <span className="text-orange-600 font-semibold">Reddit</span>, <span className="text-blue-600 font-semibold">LinkedIn</span> &amp; <span className="text-sky-600 font-semibold">Twitter</span>, LeadPulse surfaces high-intent conversations, scores them by relevance, and drafts a thoughtful comment reply — so you can join the discussion before it goes stale.
           </p>
 
           {/* Platform badges */}
-          <div className="flex items-center justify-center gap-3 mb-10 animate-slide-up" style={{ animationDelay: "0.15s" }}>
+          <div className="flex items-center justify-center gap-3 mb-8 animate-slide-up" style={{ animationDelay: "0.15s" }}>
             {platforms.map((p) => (
               <div key={p.name} className="flex items-center gap-2 px-4 py-2 rounded-xl glass border border-border-default">
                 <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${p.color}`} />
                 <span className="text-sm font-medium text-text-primary">{p.name}</span>
-                <span className="text-[11px] text-text-tertiary">{p.posts}</span>
               </div>
             ))}
           </div>
+
+          {/* Live "buyers asking" ticker — adds motion to an otherwise static hero */}
+          <BuyersAskingTicker />
 
           <HeroAuthCTA />
         </div>
@@ -250,7 +264,10 @@ export default function LandingPage() {
             "Product preview" div. Search: "SWAP ME"
             ════════════════════════════════════════════════════════════════ */}
 
-        {/* Product preview (placeholder mockup — to be swapped for demo video) */}
+        {/* Product preview — DISABLED for now (lean hero per Linear/Stripe pattern).
+            The inbox mockup further down already covers the "show product" job.
+            Flip `false` → `true` to bring this back. */}
+        {false && (
         <div className="mt-20 relative animate-float">
           <div className="absolute inset-0 bg-gradient-to-t from-bg-primary via-transparent to-transparent z-10 pointer-events-none" />
           <div className="glass rounded-2xl p-1 max-w-4xl mx-auto">
@@ -347,6 +364,7 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* ════════════════════════════════════════════════════════════════
             🎬  YOUTUBE DEMO VIDEO — SWAP ME
@@ -407,7 +425,7 @@ export default function LandingPage() {
             </div>
 
             {/* Inbox mockup */}
-            <div className="rounded-2xl border border-border-default bg-bg-secondary shadow-xl overflow-hidden">
+            <div className="rounded-2xl border border-border-default bg-bg-secondary overflow-hidden animate-float [animation-duration:3.5s] shadow-[0_25px_60px_-20px_rgba(22,163,74,0.25),_0_15px_40px_-15px_rgba(0,0,0,0.08)]">
               <div className="grid grid-cols-[160px_1fr]">
                 {/* Sidebar */}
                 <div className="bg-bg-primary border-r border-border-default p-3 space-y-4">
@@ -462,15 +480,24 @@ export default function LandingPage() {
 
                 {/* Lead list */}
                 <div>
-                  <div className="px-5 py-4 border-b border-border-default">
+                  <div className="px-5 py-3.5 border-b border-border-default">
                     <h3 className="font-bold text-text-primary">New leads</h3>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-[11px] text-text-tertiary">Tracking:</span>
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-accent-soft text-accent">
+                        ReplyPilot
+                      </span>
+                      <span className="text-[11px] text-text-tertiary truncate">
+                        AI lead-gen tool for solo founders
+                      </span>
+                    </div>
                   </div>
                   <div className="divide-y divide-border-default">
                     {[
                       { user: "u/markets_guy",  when: "3 hr ago",   title: "What lead gen tool do you actually use day-to-day?",        src: "r/sales",         dot: "bg-orange-500", color: "from-orange-400 to-red-400"   },
                       { user: "Sarah K.",       when: "1 day ago",  title: "Switched from Apollo — what's your lead stack now?",       src: "LinkedIn post",   dot: "bg-blue-600",   color: "from-blue-400 to-cyan-400"    },
                       { user: "@daviddraws",    when: "2 days ago", title: "Looking for a tool that finds leads on Reddit 🙃",          src: "Twitter",         dot: "bg-sky-500",    color: "from-sky-400 to-blue-400"     },
-                      { user: "u/coldcaller",   when: "5 days ago", title: "Best Clay alternatives for finding outbound leads?",        src: "r/sales",         dot: "bg-orange-500", color: "from-emerald-400 to-teal-400" },
+                      { user: "u/coldcaller",   when: "5 days ago", title: "Best Clay alternatives for solo founders?",                 src: "r/sales",         dot: "bg-orange-500", color: "from-emerald-400 to-teal-400" },
                       { user: "u/soloFounder",  when: "1 week ago", title: "Any lead finder under $50/mo that doesn't suck?",           src: "r/Entrepreneur",  dot: "bg-orange-500", color: "from-amber-400 to-orange-400" },
                     ].map((row, i) => (
                       <div key={i} className="px-5 py-3">
@@ -547,32 +574,121 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Buyer vs Teacher filter — built-in intent detection */}
+      <section className="relative z-10 py-20 border-t border-border-default">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent-soft px-4 py-2 text-xs uppercase tracking-[0.22em] text-accent font-semibold mb-5">
+              Built-in buyer filter
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold leading-tight mb-4">
+              Skip the experts.{" "}
+              <span className="gradient-text">Find the buyers.</span>
+            </h2>
+            <p className="text-text-secondary max-w-2xl mx-auto leading-relaxed">
+              Most lead-gen tools surface anyone talking about your category — including the experts already explaining it. LeadPulse only shows you people who are <strong>asking, comparing, or struggling</strong> — not teaching.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-5">
+            {/* Filtered out — Teacher */}
+            <div className="rounded-2xl border border-border-default bg-bg-secondary p-5 relative transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_40px_-15px_rgba(0,0,0,0.12)] hover:border-border-hover">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-bg-muted flex items-center justify-center">
+                    <X size={14} className="text-text-tertiary" strokeWidth={3} />
+                  </div>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
+                    Teacher post · skipped
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary bg-bg-muted border border-border-default px-2 py-0.5 rounded">
+                  FILTERED OUT
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 text-[11px] text-text-tertiary mb-2">
+                <span className="font-semibold text-orange-600">r/sales</span>
+                <span>·</span>
+                <span>posted by /u/sales_guru</span>
+              </div>
+              <div className="text-sm font-semibold text-text-secondary mb-1.5 line-through decoration-text-tertiary/40">
+                10 things I learned from 5 years of cold outreach 🧵
+              </div>
+              <div className="text-sm text-text-tertiary leading-relaxed line-through decoration-text-tertiary/40">
+                Long thread incoming. Spent the last 5 years building outbound at 3 SaaS companies. Here&apos;s what actually moves the needle…
+              </div>
+              <div className="mt-4 text-[11px] text-text-tertiary font-medium">
+                Sharing expertise — already has the answer.
+              </div>
+            </div>
+
+            {/* Kept — Buyer */}
+            <div className="rounded-2xl border-2 border-accent/30 bg-accent-soft p-5 shadow-[0_12px_40px_-20px_rgba(22,163,74,0.35)] relative transition-all duration-300 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_25px_60px_-20px_rgba(22,163,74,0.5)] hover:border-accent/60">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
+                    <Check size={14} className="text-white" strokeWidth={3} />
+                  </div>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-accent">
+                    Buyer post · surfaced
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-accent bg-white border border-accent/30 px-2 py-0.5 rounded">
+                  HIGH INTENT
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 text-[11px] text-text-tertiary mb-2">
+                <span className="font-semibold text-orange-600">r/sales</span>
+                <span>·</span>
+                <span>posted by /u/markets_guy</span>
+              </div>
+              <div className="text-sm font-semibold text-text-primary mb-1.5">
+                Apollo alternatives that actually work? Budget under $50
+              </div>
+              <div className="text-sm text-text-primary leading-relaxed">
+                Just got priced out of Apollo for our 2-person team. Need something that does enrichment + sequences without the enterprise bill. Open to anything.
+              </div>
+              <div className="mt-4 text-[11px] text-accent font-medium">
+                Asking, comparing, budget-stated — ready to buy.
+              </div>
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-text-tertiary mt-6 max-w-xl mx-auto">
+            Every post goes through our intent classifier before it hits your inbox.
+            You only see <strong>active buyers</strong> — not lurkers, experts, or sellers.
+          </p>
+        </div>
+      </section>
+
       {/* Before / After reply comparison */}
       <section className="relative z-10 py-20 border-t border-border-default bg-bg-secondary">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent-soft px-4 py-2 text-xs uppercase tracking-[0.22em] text-accent font-semibold mb-5">
-              Why it works
+              Comment quality
             </div>
             <h2 className="text-3xl md:text-4xl font-bold leading-tight mb-4">
-              Replies that don&apos;t sound like{" "}
+              Comments that don&apos;t sound like{" "}
               <span className="gradient-text">AI</span>
             </h2>
             <p className="text-text-secondary max-w-2xl mx-auto">
-              Most outreach tools stop at <code className="text-[13px] px-1.5 py-0.5 rounded bg-bg-muted text-text-primary font-mono">{`{{first_name}}`}</code>. LeadPulse reads the exact post and writes a reply that references their problem, not their name.
+              Most AI tools stop at <code className="text-[13px] px-1.5 py-0.5 rounded bg-bg-muted text-text-primary font-mono">{`{{first_name}}`}</code>. LeadPulse reads the exact post and drafts a comment that references their actual problem — so you sound like a peer who&apos;s been there, not a tool. <strong>You always review and post the comment yourself</strong> — we never send anything automatically.
             </p>
           </div>
 
           {/* The Reddit post being replied to */}
           <div className="max-w-2xl mx-auto mb-6 rounded-2xl border border-border-default bg-bg-primary p-5">
             <div className="flex items-center gap-2 text-[11px] text-text-tertiary mb-2">
-              <span className="font-semibold text-orange-600">r/freelance</span>
+              <span className="font-semibold text-orange-600">r/sales</span>
               <span>·</span>
-              <span>posted 2h ago by /u/sarah_designs</span>
+              <span>posted 2h ago by /u/markets_guy</span>
             </div>
-            <div className="text-sm font-semibold mb-1.5">Looking for a simple invoicing tool for freelancers</div>
+            <div className="text-sm font-semibold mb-1.5">Apollo alternatives that actually work? Budget under $50</div>
             <div className="text-sm text-text-secondary leading-relaxed">
-              Hey all, I&apos;ve been using FreshBooks but it&apos;s overkill for my single-person shop. Just need something that does invoices, late-fee reminders, and accepts Stripe. Open to alternatives under $20/mo.
+              Just got priced out of Apollo for our 2-person team. Need something that does enrichment + sequences without the enterprise bill. Open to anything — Reddit, LinkedIn outbound, whatever works.
             </div>
           </div>
 
@@ -585,14 +701,14 @@ export default function LandingPage() {
                   <X size={14} className="text-text-tertiary" />
                 </div>
                 <span className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
-                  Generic outreach tool
+                  Generic AI tool
                 </span>
               </div>
               <p className="text-sm text-text-secondary leading-relaxed">
-                Hi <span className="bg-amber-100 text-amber-700 px-1 rounded font-mono text-xs">{`{{first_name}}`}</span>! Saw your post about invoicing. We built <span className="bg-amber-100 text-amber-700 px-1 rounded font-mono text-xs">{`{{product}}`}</span> for freelancers like you. Sign up for a free trial here: <span className="underline">[link]</span>
+                Hi <span className="bg-amber-100 text-amber-700 px-1 rounded font-mono text-xs">{`{{first_name}}`}</span>! Saw your post about sales tools. We built <span className="bg-amber-100 text-amber-700 px-1 rounded font-mono text-xs">{`{{product}}`}</span> for teams like yours. Sign up for a free trial here: <span className="underline">[link]</span>
               </p>
               <div className="mt-4 text-[11px] text-red-700 font-medium">
-                Sounds like a bot. Buyer ignores it.
+                Sounds promotional. Moderators delete it.
               </div>
             </div>
 
@@ -603,14 +719,14 @@ export default function LandingPage() {
                   <Check size={14} className="text-white" strokeWidth={3} />
                 </div>
                 <span className="text-xs font-semibold uppercase tracking-wide text-accent">
-                  LeadPulse
+                  LeadPulse suggestion
                 </span>
               </div>
               <p className="text-sm text-text-primary leading-relaxed">
-                Hey Sarah — totally feel you on FreshBooks being overkill for a solo shop. The Stripe + late-fee reminder combo is exactly what we built our invoicing flow around. $9/mo, no learning curve. If it&apos;s useful here&apos;s a quick try-it link, otherwise happy to send screenshots.
+                The Apollo price jump caught a lot of small teams off guard recently. For a 2-person shop, the enrichment + sequence stuff usually overlaps — what&apos;s the part you actually use day-to-day? If it&apos;s mostly outbound + reply gen, happy to share what worked for us on that exact stack.
               </p>
               <div className="mt-4 text-[11px] text-accent font-medium">
-                References her exact pain. Reads like a peer.
+                Reads like a peer adding value. You review &amp; post manually.
               </div>
             </div>
           </div>
@@ -672,10 +788,10 @@ export default function LandingPage() {
               How we compare
             </div>
             <h2 className="text-3xl md:text-4xl font-bold leading-tight mb-3">
-              Why bet your pipeline on one platform?
+              Why miss conversations on the other platforms?
             </h2>
             <p className="text-text-secondary max-w-2xl mx-auto">
-              Most outreach tools cover one community. LeadPulse runs across all three — so when your buyers move, you don&apos;t lose them.
+              Most discovery tools cover one community. LeadPulse runs across all three — so when relevant discussions happen anywhere, you can show up and contribute.
             </p>
           </div>
 
@@ -698,14 +814,14 @@ export default function LandingPage() {
 
               {/* Rows */}
               {[
-                { feat: "Reddit coverage",                  them: true,  us: true  },
-                { feat: "LinkedIn coverage",                 them: false, us: true  },
-                { feat: "Twitter / X coverage",              them: false, us: true  },
-                { feat: "AI-personalized DMs",               them: true,  us: true  },
-                { feat: "Public reply suggestions",          them: false, us: true  },
-                { feat: "Intent scoring (Hot / Warm / Cold)", them: false, us: true  },
-                { feat: "Multi-product tracking",            them: false, us: true  },
-                { feat: "Live realtime inbox",               them: false, us: true  },
+                { feat: "Reddit coverage",                       them: true,  us: true  },
+                { feat: "LinkedIn coverage",                      them: false, us: true  },
+                { feat: "Twitter / X coverage",                   them: false, us: true  },
+                { feat: "AI-drafted comment replies (you post)",  them: true,  us: true  },
+                { feat: "Intent scoring (Hot / Warm / Cold)",     them: false, us: true  },
+                { feat: "Teacher-vs-buyer filtering",             them: false, us: true  },
+                { feat: "Multi-product tracking",                 them: false, us: true  },
+                { feat: "Live realtime inbox",                    them: false, us: true  },
               ].map((row, idx, arr) => (
                 <Fragment key={row.feat}>
                   <div className={`px-5 py-3.5 text-text-primary ${idx < arr.length - 1 ? "border-b border-border-default" : ""}`}>
@@ -731,7 +847,52 @@ export default function LandingPage() {
           </div>
 
           <p className="text-center text-xs text-text-tertiary mt-5">
-            Based on public features of common Reddit-focused outreach tools as of 2026.
+            Based on public features of common Reddit-focused discovery tools as of 2026.
+          </p>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="relative z-10 py-20 border-t border-border-default">
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent-soft px-4 py-2 text-xs uppercase tracking-[0.22em] text-accent font-semibold mb-5">
+              FAQ
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold leading-tight mb-3">
+              Questions before you start?
+            </h2>
+            <p className="text-text-secondary">
+              The honest answers — no marketing fluff.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {faqItems.map((item) => (
+              <details
+                key={item.q}
+                className="group rounded-2xl border border-border-default bg-bg-secondary px-5 py-4 transition-colors hover:border-border-hover [&_summary::-webkit-details-marker]:hidden"
+              >
+                <summary className="flex items-center justify-between gap-4 cursor-pointer list-none">
+                  <span className="text-base font-semibold text-text-primary">{item.q}</span>
+                  <ChevronDown
+                    size={18}
+                    className="text-text-tertiary shrink-0 transition-transform group-open:rotate-180"
+                  />
+                </summary>
+                <p className="mt-3 text-sm text-text-secondary leading-relaxed">
+                  {item.a}
+                </p>
+              </details>
+            ))}
+          </div>
+
+          <p className="text-center text-sm text-text-tertiary mt-8">
+            Still have a question? Email{" "}
+            <a href={`mailto:${siteConfig.email}`} className="text-accent hover:text-accent-hover font-medium">
+              {siteConfig.email}
+            </a>{" "}
+            — we usually reply in a few hours.
           </p>
         </div>
       </section>
@@ -749,12 +910,72 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-border-default py-8">
-        <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
-          <p className="text-sm text-text-tertiary">&copy; 2026 LeadPulse</p>
-          <div className="flex gap-6 text-sm text-text-tertiary">
-            <a href="#" className="hover:text-text-secondary">Privacy</a>
-            <a href="#" className="hover:text-text-secondary">Terms</a>
+      <footer className="relative z-10 border-t border-border-default pt-14 pb-8">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
+            {/* Brand column */}
+            <div className="col-span-2 md:col-span-1">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-accent to-[#22d3ee] flex items-center justify-center">
+                  <Zap className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-base font-bold">LeadPulse</span>
+              </div>
+              <p className="text-xs text-text-tertiary leading-relaxed mb-3">
+                Find buying-intent posts across Reddit, LinkedIn &amp; Twitter.
+              </p>
+              <div className="inline-flex items-center gap-1.5 text-[11px] text-text-secondary">
+                <span className="relative flex w-1.5 h-1.5">
+                  <span className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-75" />
+                  <span className="relative w-1.5 h-1.5 rounded-full bg-green-500" />
+                </span>
+                All systems operational
+              </div>
+            </div>
+
+            {/* Product */}
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-text-secondary mb-3">
+                Product
+              </div>
+              <ul className="space-y-2 text-sm">
+                <li><Link href="/pricing" className="text-text-tertiary hover:text-text-primary transition-colors">Pricing</Link></li>
+                <li><a href="#how" className="text-text-tertiary hover:text-text-primary transition-colors">How it works</a></li>
+                <li><Link href="/auth/signup" className="text-text-tertiary hover:text-text-primary transition-colors">Start free trial</Link></li>
+                <li><Link href="/auth/login" className="text-text-tertiary hover:text-text-primary transition-colors">Log in</Link></li>
+              </ul>
+            </div>
+
+            {/* Resources */}
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-text-secondary mb-3">
+                Resources
+              </div>
+              <ul className="space-y-2 text-sm">
+                <li><a href="mailto:support@leadpulse.io" className="text-text-tertiary hover:text-text-primary transition-colors">Support</a></li>
+                <li><a href="#" className="text-text-tertiary hover:text-text-primary transition-colors">Help center</a></li>
+                <li><a href="#" className="text-text-tertiary hover:text-text-primary transition-colors">Changelog</a></li>
+                <li><a href="#" className="text-text-tertiary hover:text-text-primary transition-colors">Status</a></li>
+              </ul>
+            </div>
+
+            {/* Company */}
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-text-secondary mb-3">
+                Company
+              </div>
+              <ul className="space-y-2 text-sm">
+                <li><a href="mailto:support@leadpulse.io" className="text-text-tertiary hover:text-text-primary transition-colors">Contact</a></li>
+                <li><Link href="/privacy" className="text-text-tertiary hover:text-text-primary transition-colors">Privacy</Link></li>
+                <li><Link href="/terms" className="text-text-tertiary hover:text-text-primary transition-colors">Terms</Link></li>
+                <li><a href="#" className="text-text-tertiary hover:text-text-primary transition-colors">Twitter</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3 pt-6 border-t border-border-default">
+            <p className="text-xs text-text-tertiary">&copy; 2026 LeadPulse — Built for founders who hate cold emails.</p>
+            <p className="text-xs text-text-tertiary">Made with care in 🇮🇳 India.</p>
           </div>
         </div>
       </footer>

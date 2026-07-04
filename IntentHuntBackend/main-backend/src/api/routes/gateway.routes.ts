@@ -5,278 +5,229 @@ import { authMiddleware } from '../middleware/auth.middleware.js';
 import { prisma } from '../../db/prisma.client.js';
 import { logger } from '../../utils/logger.js';
 import { NotFoundError, ForbiddenError } from '../../utils/errors.js';
+import { canCreateProduct } from '../../services/plan-enforcement.js';
 
 /**
- * Gateway routes proxy authenticated requests to internal microservices.
- * Strips the Authorization header and forwards X-User-Id instead.
+ * Gateway — proxies authenticated requests to crawler-service (the lead engine).
+ *
+ * Auth: this layer verifies the Bearer token, then forwards X-User-Id to
+ * crawler-service which trusts the gateway.
+ *
+ * Endpoints:
+ *   POST   /products                                  create product (no AI call)
+ *   GET    /products                                  list user's products
+ *   GET    /products/:productId                       get one product
+ *   PATCH  /products/:productId                       edit (clears AI cache on description change)
+ *   DELETE /products/:productId                       delete + cascade leads
+ *   POST   /products/:productId/find-leads            kick off pipeline (async)
+ *   GET    /search-runs/:searchRunId                  poll pipeline status (fallback to Realtime)
+ *   GET    /products/:productId/leads                 list leads for a product
  */
 export async function gatewayRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', authMiddleware);
 
-  // ── Keyword Service ─────────────────────────────────
-  // Generates keywords via AI and saves the result to the products table.
-  app.post('/keywords/generate', async (request, reply) => {
-    const url = `${env.KEYWORD_SERVICE_URL}/api/v1/keywords/generate`;
+  // ── Products CRUD ───────────────────────────────────────────────────────
 
-    const { statusCode, body } = await undiciRequest(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-user-id': request.userId },
-      body: JSON.stringify(request.body),
-    });
+  // POST /products — create a product row (empty intelligence/queries; AI runs on first find-leads)
+  app.post('/products', async (request, reply) => {
+    const body = request.body as { name?: string; description: string; productUrl?: string };
 
-    const responseText = await body.text();
-
-    if (statusCode !== 200) {
-      reply.status(statusCode).send(responseText);
+    if (!body.description || body.description.trim().length === 0) {
+      reply.status(400).send({
+        statusCode: 400,
+        error: 'BAD_REQUEST',
+        message: 'description is required',
+      });
       return;
     }
 
-    const result = JSON.parse(responseText) as {
-      intelligence: Record<string, unknown>;
-      queries: { redditGlobal: string[]; redditSubreddit: string[]; hackernews: string[]; linkedin: string[] };
-      subreddits: string[];
-    };
+    // ── Plan enforcement ──────────────────────────────────────────────────
+    // Server-side check: confirm the user's plan + status allows another product.
+    // The frontend should also gate this, but never trust the client alone.
+    const check = await canCreateProduct(request.userId);
+    if (!check.allowed) {
+      return reply.status(402).send({
+        statusCode: 402,
+        error: 'PAYMENT_REQUIRED',
+        message: check.reason,
+        ...(check.limit !== undefined ? { limit: check.limit, current: check.current, plan: check.plan } : {}),
+      });
+    }
 
-    // Save to products table
-    const reqBody = request.body as { name: string; description: string };
     const product = await prisma.product.create({
       data: {
         userId:       request.userId,
-        name:         reqBody.name,
-        description:  reqBody.description,
-        intelligence: result.intelligence as any,
-        queries:      result.queries as any,
-        subreddits:   result.subreddits,
+        name:         body.name ?? '',
+        description:  body.description,
+        productUrl:   body.productUrl ?? null,
+        intelligence: {},
+        queries:      {},
+        subreddits:   [],
       },
     });
 
-    logger.info({ productId: product.id, userId: request.userId }, 'Product keywords saved');
-
-    reply.status(200).send({ ...result, productId: product.id });
+    logger.info({ productId: product.id, userId: request.userId }, 'Product created');
+    reply.status(201).send(product);
   });
 
-  // ── Products ─────────────────────────────────────────
+  // GET /products  (includes leadCount per product)
   app.get('/products', async (request, reply) => {
     const products = await prisma.product.findMany({
       where:   { userId: request.userId },
-      select:  { id: true, name: true, description: true, queries: true, subreddits: true, createdAt: true },
+      select:  {
+        id: true, name: true, description: true, productUrl: true,
+        intelligence: true, queries: true, subreddits: true,
+        lastSearchedAt: true, createdAt: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
-    reply.send({ products });
+
+    if (products.length === 0) {
+      return reply.send({ products: [] });
+    }
+
+    // Bulk-count leads per product in a single SQL roundtrip.
+    // Also count leads created in the last 24h (the "new" badge on the UI).
+    // The `leads` table is owned by crawler-service but shares the same DB,
+    // so we read it via raw SQL rather than adding the model to this schema.
+    const productIds = products.map(p => p.id);
+    const counts = await prisma.$queryRaw<Array<{
+      product_id: string;
+      total: number;
+      new_24h: number;
+    }>>`
+      SELECT
+        product_id::text AS product_id,
+        COUNT(*)::int     AS total,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')::int AS new_24h
+      FROM leads
+      WHERE product_id = ANY(${productIds}::uuid[])
+      GROUP BY product_id
+    `;
+    const countMap = new Map(
+      counts.map(c => [c.product_id, { total: Number(c.total), new24h: Number(c.new_24h) }]),
+    );
+
+    const productsWithCounts = products.map(p => {
+      const c = countMap.get(p.id);
+      return {
+        ...p,
+        leadCount:    c?.total  ?? 0,
+        newLeadCount: c?.new24h ?? 0,
+      };
+    });
+
+    reply.send({ products: productsWithCounts });
   });
 
-  // Delete a product and all associated crawl jobs (posts/tasks cascade in crawler DB)
-  app.delete('/products/:productId', async (request, reply) => {
+  // GET /products/:productId
+  app.get('/products/:productId', async (request, reply) => {
     const { productId } = request.params as { productId: string };
+    const product = await prisma.product.findUnique({ where: { id: productId } });
+    if (!product) throw new NotFoundError('Product', productId);
+    if (product.userId !== request.userId) throw new ForbiddenError();
+    reply.send(product);
+  });
+
+  // PATCH /products/:productId
+  app.patch('/products/:productId', async (request, reply) => {
+    const { productId } = request.params as { productId: string };
+    const body = request.body as {
+      name?:         string;
+      description?:  string;
+      productUrl?:   string | null;
+      queries?:      Record<string, unknown>;
+      subreddits?:   string[];
+    };
 
     const product = await prisma.product.findUnique({ where: { id: productId } });
     if (!product) throw new NotFoundError('Product', productId);
     if (product.userId !== request.userId) throw new ForbiddenError();
 
-    // Find all crawl jobs linked to this product
-    const jobs = await prisma.crawlJob.findMany({
-      where: { productId },
-      select: { id: true },
+    // If the user changed the description, clear cached AI output so next
+    // find-leads re-runs Step 1 on the new description.
+    const descriptionChanged = body.description !== undefined && body.description !== product.description;
+
+    const updated = await prisma.product.update({
+      where: { id: productId },
+      data: {
+        ...(body.name        !== undefined ? { name: body.name }               : {}),
+        ...(body.description !== undefined ? { description: body.description } : {}),
+        ...(body.productUrl  !== undefined ? { productUrl: body.productUrl }   : {}),
+        ...(body.queries     !== undefined ? { queries: body.queries as any }  : {}),
+        ...(body.subreddits  !== undefined ? { subreddits: body.subreddits }   : {}),
+        ...(descriptionChanged ? { intelligence: {} as any, queries: {} as any } : {}),
+      },
     });
-    const jobIds = jobs.map(j => j.id);
 
-    // Delete posts & tasks in crawler DB (cascade from crawl_jobs)
-    if (jobIds.length > 0) {
-      const deleteUrl = `${env.CRAWLER_SERVICE_URL}/api/v1/jobs`;
-      for (const jobId of jobIds) {
-        await undiciRequest(`${deleteUrl}/${jobId}`, {
-          method: 'DELETE',
-          headers: { 'content-type': 'application/json', 'x-user-id': request.userId },
-        }).catch(err => {
-          logger.warn({ err, jobId }, 'Failed to delete crawler job');
-        });
-      }
-    }
-
-    // Delete crawl jobs from main-backend DB
-    await prisma.crawlJob.deleteMany({ where: { productId } });
-
-    // Delete the product itself
-    await prisma.product.delete({ where: { id: productId } });
-
-    logger.info({ productId, jobsDeleted: jobIds.length }, 'Product and associated data deleted');
-    reply.send({ message: 'Product deleted', productId, jobsDeleted: jobIds.length });
+    reply.send(updated);
   });
 
-  // ── Crawler Service ─────────────────────────────────
+  // DELETE /products/:productId — cascade deletes search_runs + leads via FK
+  app.delete('/products/:productId', async (request, reply) => {
+    const { productId } = request.params as { productId: string };
+    const product = await prisma.product.findUnique({ where: { id: productId } });
+    if (!product) throw new NotFoundError('Product', productId);
+    if (product.userId !== request.userId) throw new ForbiddenError();
 
-  // Create a crawl job — stores query payload in metadata for recrawl.
-  app.post('/crawl/jobs', async (request, reply) => {
-    const url = `${env.CRAWLER_SERVICE_URL}/api/v1/jobs`;
-    logger.info({ body: request.body }, 'POST /crawl/jobs received body');
-    const reqBody = request.body as {
-      queries: { redditGlobal: string[]; redditSubreddit: string[]; hackernews: string[]; linkedin: string[] };
-      subreddits: string[];
-      productId?: string;
-    };
+    // Cascade in crawler DB (search_runs → leads via Lead.searchRun onDelete:Cascade,
+    // search_runs is referenced by productId but no FK there — clean manually).
+    await prisma.$transaction([
+      // Delete leads (no FK to product directly in main-backend's schema, but
+      // crawler-service models them — they cascade from search_runs)
+      // Just delete the product; main-backend has no Lead model, crawler-service handles.
+      prisma.product.delete({ where: { id: productId } }),
+    ]);
 
-    const { statusCode, body } = await undiciRequest(url, {
-      method: 'POST',
+    // Notify crawler-service to clean its tables
+    await undiciRequest(`${env.CRAWLER_SERVICE_URL}/api/v1/products/${productId}/cleanup`, {
+      method:  'POST',
       headers: { 'content-type': 'application/json', 'x-user-id': request.userId },
-      body: JSON.stringify(reqBody),
-    });
+    }).catch((err) => logger.warn({ err, productId }, 'Crawler cleanup failed (non-fatal)'));
 
-    const responseText = await body.text();
-
-    if (statusCode === 202) {
-      const crawlerResponse = JSON.parse(responseText) as { jobId: string };
-
-      // Upsert job reference — crawler-service may have already created the record
-      const keywords = [
-        ...new Set([
-          ...(reqBody.queries.redditGlobal    ?? []),
-          ...(reqBody.queries.redditSubreddit ?? []),
-          ...(reqBody.queries.hackernews      ?? []),
-          ...(reqBody.queries.linkedin        ?? []),
-        ]),
-      ];
-      const sources: ('reddit' | 'hackernews' | 'linkedin')[] = [
-        ...(((reqBody.queries.redditGlobal ?? []).length > 0 || (reqBody.queries.redditSubreddit ?? []).length > 0) ? ['reddit' as const] : []),
-        ...((reqBody.queries.hackernews ?? []).length > 0 ? ['hackernews' as const] : []),
-        ...((reqBody.queries.linkedin   ?? []).length > 0 ? ['linkedin'   as const] : []),
-      ];
-      const metadata = { queries: reqBody.queries, subreddits: reqBody.subreddits ?? [] };
-
-      await prisma.crawlJob.upsert({
-        where:  { id: crawlerResponse.jobId },
-        create: {
-          id:        crawlerResponse.jobId,
-          userId:    request.userId,
-          productId: reqBody.productId ?? null,
-          keywords,
-          sources,
-          metadata,
-        },
-        update: {
-          productId: reqBody.productId ?? null,
-          keywords,
-          sources,
-          metadata,
-        },
-      }).catch(err => {
-        logger.warn({ err, jobId: crawlerResponse.jobId }, 'Failed to upsert job reference in main-backend');
-      });
-    }
-
-    reply.status(statusCode).send(responseText);
+    reply.send({ message: 'Product deleted', productId });
   });
 
-  app.get('/crawl/jobs', async (request, reply) => {
-    const qs = new URLSearchParams(request.query as Record<string, string>).toString();
-    const path = `/api/v1/jobs${qs ? `?${qs}` : ''}`;
+  // ── Lead Engine ─────────────────────────────────────────────────────────
 
-    const { statusCode, headers, body } = await undiciRequest(`${env.CRAWLER_SERVICE_URL}${path}`, {
-      method: 'GET',
-      headers: { 'content-type': 'application/json', 'x-user-id': request.userId },
-    });
-
-    const responseText = await body.text();
-
-    if (statusCode !== 200) {
-      reply.status(statusCode).header('content-type', headers['content-type'] ?? 'application/json').send(responseText);
-      return;
-    }
-
-    const crawlerResponse = JSON.parse(responseText) as {
-      jobs: Array<{ jobId: string;[key: string]: unknown }>;
-      total: number; page: number; limit: number;
-    };
-
-    // Enrich each job with productId from main-backend DB
-    const jobIds = crawlerResponse.jobs.map(j => j.jobId);
-    const localJobs = await prisma.crawlJob.findMany({
-      where: { id: { in: jobIds } },
-      select: { id: true, productId: true },
-    });
-
-    const productIdMap = new Map(localJobs.map(j => [j.id, j.productId]));
-
-    const enriched = {
-      ...crawlerResponse,
-      jobs: crawlerResponse.jobs.map(j => ({
-        ...j,
-        productId: productIdMap.get(j.jobId) ?? null,
-      })),
-    };
-
-    reply.status(200).send(enriched);
+  // POST /products/:productId/find-leads
+  app.post('/products/:productId/find-leads', async (request, reply) => {
+    const { productId } = request.params as { productId: string };
+    return proxy(request, reply, env.CRAWLER_SERVICE_URL, `/api/v1/find-leads/${productId}`);
   });
 
-  app.get('/crawl/jobs/:jobId', async (request, reply) => {
-    const { jobId } = request.params as { jobId: string };
-    return proxy(request, reply, env.CRAWLER_SERVICE_URL, `/api/v1/jobs/${jobId}`);
+  // GET /search-runs/:searchRunId
+  app.get('/search-runs/:searchRunId', async (request, reply) => {
+    const { searchRunId } = request.params as { searchRunId: string };
+    return proxy(request, reply, env.CRAWLER_SERVICE_URL, `/api/v1/search-runs/${searchRunId}`);
   });
 
-  app.get('/crawl/jobs/:jobId/posts', async (request, reply) => {
-    const { jobId } = request.params as { jobId: string };
-    const qs = new URLSearchParams({ jobId, ...(request.query as Record<string, string>) }).toString();
-    return proxy(request, reply, env.CRAWLER_SERVICE_URL, `/api/v1/posts?${qs}`);
+  // PATCH /leads/:leadId — update tags, viewed flag, status
+  app.patch('/leads/:leadId', async (request, reply) => {
+    const { leadId } = request.params as { leadId: string };
+    return proxy(request, reply, env.CRAWLER_SERVICE_URL, `/api/v1/leads/${leadId}`);
   });
 
-  // ── Recrawl — reuse saved query payload from original job ────────────────
-  app.post('/crawl/jobs/:jobId/recrawl', async (request, reply) => {
-    const { jobId } = request.params as { jobId: string };
-
-    const job = await prisma.crawlJob.findUnique({ where: { id: jobId } });
-    if (!job) throw new NotFoundError('CrawlJob', jobId);
-    if (job.userId !== request.userId) throw new ForbiddenError();
-
-    const meta = job.metadata as { queries?: Record<string, string[]>; subreddits?: string[] };
-    if (!meta.queries) {
-      reply.status(400).send({
-        statusCode: 400,
-        error: 'BAD_REQUEST',
-        message: 'Original job has no saved query payload — cannot recrawl',
-      });
-      return;
-    }
-
-    // Create new crawl job with same queries
-    const url = `${env.CRAWLER_SERVICE_URL}/api/v1/jobs`;
-    const { statusCode, body } = await undiciRequest(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-user-id': request.userId },
-      body: JSON.stringify({ queries: meta.queries, subreddits: meta.subreddits ?? [] }),
-    });
-
-    const responseText = await body.text();
-
-    if (statusCode === 202) {
-      const crawlerResponse = JSON.parse(responseText) as { jobId: string };
-
-      await prisma.crawlJob.create({
-        data: {
-          id:        crawlerResponse.jobId,
-          userId:    request.userId,
-          productId: job.productId ?? null,
-          keywords:  job.keywords,
-          sources:   job.sources,
-          metadata:  { queries: meta.queries, subreddits: meta.subreddits ?? [] },
-        },
-      }).catch(err => {
-        logger.warn({ err, jobId: crawlerResponse.jobId }, 'Failed to save recrawl job reference');
-      });
-    }
-
-    reply.status(statusCode).send(responseText);
+  // GET /products/:productId/leads
+  app.get('/products/:productId/leads', async (request, reply) => {
+    const { productId } = request.params as { productId: string };
+    const queryString = new URLSearchParams({
+      productId,
+      ...(request.query as Record<string, string>),
+    }).toString();
+    return proxy(request, reply, env.CRAWLER_SERVICE_URL, `/api/v1/leads?${queryString}`);
   });
 }
 
-// ── Proxy helper ────────────────────────────────────────
+// ── Proxy helper ────────────────────────────────────────────────────────────
 
 async function proxy(
   request: FastifyRequest,
-  reply: FastifyReply,
+  reply:   FastifyReply,
   baseUrl: string,
-  path: string,
+  path:    string,
 ): Promise<void> {
   const url = `${baseUrl}${path}`;
-
   try {
     const { statusCode, headers, body } = await undiciRequest(url, {
       method: request.method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
@@ -284,11 +235,10 @@ async function proxy(
         'content-type': 'application/json',
         'x-user-id':    request.userId,
       },
-      body: request.method !== 'GET' ? JSON.stringify(request.body) : null,
+      body: request.method !== 'GET' ? JSON.stringify(request.body ?? {}) : null,
     });
 
     const responseBody = await body.text();
-
     reply
       .status(statusCode)
       .header('content-type', headers['content-type'] ?? 'application/json')

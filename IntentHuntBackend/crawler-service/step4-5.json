@@ -1,0 +1,123 @@
+{
+  "leads": [
+    {
+      "url": "https://www.reddit.com/r/chrome_extensions/comments/1mk5knb/musician_rewind_youtube_videos_a_lot_youtube_loop/",
+      "platform": "reddit",
+      "subreddit": "chrome_extensions",
+      "title": "Musician? Rewind YouTube videos a lot? YouTube Loop Repeater will help you!",
+      "content": "After 1.5 years of on-and-off work, my newest extension is available for free: [YouTube Loop Repeater](https://chromewebstore.google.com/detail/youtube-loop-repeater/mmiaiilfidkefkhbjnbhpkjlflehkncl). With YouTube Loop Repeater, you're now able to play your instrument along with YouTube videos, without having to take your hands off (and more importantly, losing your focus) to rewind parts of songs. Create as many loops as you want per video, and access them whenever you want! No more having to remember which timestamps are for which parts, nor do you have to keep a manual list of songs or exercises you're trying to practice.\n\nDon't play an instrument? There are still many things YouTube Loop Repeater can be used for: learning how to dance, learning tricks (skateboard, soccer, magic, etc.), finding samples to use for songs, keeping track of techniques (cooking, art, workouts, etc), and many others!\n\nThere are two different modes to play loops in my extension: **Static**, and **Incremental**.\n\n**Static**: Play a specified loop at a constant speed, as many times as you want.\n\n**Incremental**: Play a loop that starts at a given speed. After the loop repeats an input amount of times, increase/decrease the speed by whatever you want. This will keep looping until you reach a goal speed that you specify. For example, you could start a loop at 75% speed. And then every 3 loops that finish, you increase the speed by 1%, until you reach 100% speed.\n\nIncremental mode is my go-to, because it helps me get comfortable with hard parts of songs at lower speeds, but gently pushes me to work up to playing it at full-speed. I've saved a lot of time by using my own extension, and have had much more focused practice sessions.\n\nGet it here: [https://chromewebstore.google.com/detail/youtube-loop-repeater/mmiaiilfidkefkhbjnbhpkjlflehkncl](https://chromewebstore.google.com/detail/youtube-loop-repeater/mmiaiilfidkefkhbjnbhpkjlflehkncl)\n\nI don't charge for the browser extensions I make (but donations are more than welcome :) ). This is completely 100% free, no sort of subscription required.",
+      "author": "emdh-dev",
+      "postScore": 2,
+      "commentCount": 3,
+      "postedAt": "2025-08-07T17:00:11.000Z",
+      "topComments": [
+        "Dope!",
+        "Ah, I can totally relate to the struggle of having to constantly rewind YouTube videos while practicing an instrument. Your YouTube Loop Repeater extension sounds like a game-changer! The ability to create custom loops and adjust the speed incrementally is such a clever solution. I've been using InfiniteLooper for a similar purpose - it's been a lifesaver for learning complex guitar parts. Having those precise controls really helps me focus on the tricky sections without losing my flow. I'm exci"
+      ],
+      "preScore": 60,
+      "googleSnippet": "Your YouTube Loop Repeater extension sounds like a game-changer! The ability to create custom loops and adjust the speed incrementally is such a clever solution ...",
+      "querySource": "site:reddit.com youtube loop extension",
+      "intentScore": 80,
+      "leadType": "hot",
+      "reasoning": "The author is actively promoting a similar product and discussing the pain points that Repeatly addresses, indicating a strong interest in this category.",
+      "replyOpportunity": "none",
+      "suggestedAngle": "You could mention how Repeatly offers similar features and might be a great alternative for users looking for more options."
+    },
+    {
+      "url": "https://www.reddit.com/r/firefox/comments/1lngdjq/extension_for_looping_youtube_videos_in_browser/",
+      "platform": "reddit",
+      "subreddit": "firefox",
+      "title": "Extension for Looping YouTube videos in browser?",
+      "content": "Basically looking for an extension for looping youtube videos on the youtube mobile site specifically",
+      "author": "SteadfastWhiplash",
+      "postScore": 3,
+      "commentCount": 13,
+      "postedAt": "2025-06-29T14:44:14.000Z",
+      "topComments": [
+        "https://addons.mozilla.org/en-GB/firefox/addon/enhancer-for-youtube/ has an option to loop. Not sure if it works for Firefox on Android.",
+        "Why do you want to watch videos in the browser? I think revanced is much better.  \nRead about[ revanced LINK](https://github.com/KobeW50/ReVanced-Documentation/blob/main/YT-ReVanced-Guide.md#before-you-begin)\n\n[Tweaks for YouTube](https://addons.mozilla.org/en-GB/firefox/addon/tweaks-for-youtube/) has a loop option for PC.  \nMany people recommend [Improve YouTube!](https://addons.mozilla.org/pl/firefox/addon/youtube-addon/?utm_source=addons.mozilla.org&utm_medium=referral&utm_content=search) **b",
+        "You may have a better experience watching YouTube videos on your phone with [PipePipe](https://f-droid.org/packages/InfinityLoop1309.NewPipeEnhanced/)."
+      ],
+      "preScore": 40,
+      "googleSnippet": "Tweaks for YouTube is a good option. It has a looping feature and much more. I've seen many people recommend Improve YouTube! If you want the best YouTube ...",
+      "querySource": "site:reddit.com youtube loop extension",
+      "intentScore": 60,
+      "leadType": "warm",
+      "reasoning": "The author is explicitly looking for a looping extension for YouTube, indicating a need that Repeatly can address.",
+      "replyOpportunity": "comment",
+      "suggestedAngle": "You could mention how Repeatly allows users to loop specific sections of YouTube videos easily, which might be exactly what they're looking for."
+    },
+    {
+      "url": "https://www.reddit.com/r/guitarlessons/comments/1qzaoz1/chrome_extension_to_loop_tough_sections_on/",
+      "platform": "reddit",
+      "subreddit": "guitarlessons",
+      "title": "Chrome extension to loop tough sections on YouTube for practice",
+      "content": "Hey everyone 👋  \nI’ve been practicing guitar a lot using YouTube tutorials, and man… rewinding the same 3–5 second lick again and again was driving me crazy.\n\nRecently I stumbled on a Chrome extension that honestly made practice way smoother. It lets you:\n\n* Set super precise A-B loops with keyboard shortcuts\n* Save different sections of a video (like specific riffs or solo parts)\n* Jump between saved parts with next/prev buttons\n* See markers directly on the YouTube timeline\n\nIt’s been a game-changer for breaking down solos and tightening timing without killing the flow. I’ve been using it daily now.\n\nIf anyone else practices off YouTube and struggles with constant rewinding, this might be worth checking out. It’s called **“Looper for YouTube”** and it’s free on the Chrome Web Store.\n\nCurious if others here use tools like this or have practice workflow tips 👀🎸",
+      "author": "Less-Tomatillo-7276",
+      "postScore": 4,
+      "commentCount": 6,
+      "postedAt": "2026-02-08T14:44:48.000Z",
+      "topComments": [
+        "I use this one, it's great   https://looptube.xyz",
+        "Or if you can't be arsed with dodgy extensions: j and l keys to go back and forward 10s.\n\nShift < or > to change speed.",
+        "I like this kind of tool but man I hate AI."
+      ],
+      "preScore": 60,
+      "googleSnippet": "If anyone else practices off YouTube and struggles with constant rewinding, this might be worth checking out. It's called “Looper for YouTube” and it's free on ...",
+      "querySource": "site:reddit.com youtube loop extension",
+      "intentScore": 60,
+      "leadType": "warm",
+      "reasoning": "The author describes the exact pain of rewinding YouTube videos for guitar practice and mentions using a similar tool, indicating a need for a solution.",
+      "replyOpportunity": "none",
+      "suggestedAngle": "You could share insights about how Repeatly offers similar features to enhance their practice experience, but since they are already using a competitor, it may not feel natural to push the product."
+    },
+    {
+      "url": "https://www.reddit.com/r/firefox/comments/1qt2ows/i_needed_a_simple_youtube_video_section_looper_to/",
+      "platform": "reddit",
+      "subreddit": "firefox",
+      "title": "I needed a simple YouTube video section looper to practice playing my guitar riffs, ventured out and built this extension for myself (opensource - mit)",
+      "content": "Hey everyone,\n\nI’ve always found it annoying that YouTube’s native \"Loop\" feature only repeats the *entire* video. When I'm trying to learn a specific riff, I end up clicking the seek bar 50 times.\n\nTo fix this, I made **YouTube Section Looper**. It’s a lightweight Firefox extension that lets you set a precise start and end time for any video segment and specify number of repetitions.\n\n**Features:**\n\n* Set loops easily.\n* Precise timing (down to the millisecond).\n* Clean UI that stays out of the way.\n* Free of-course and Open Source.\n\nI'd love for you to try it out and please feel free to submit any improvements or raise issues etc.. Its under MIT license. So, no clauses attached. \n\n**Link:** [https://addons.mozilla.org/en-US/firefox/addon/youtube-section-looper/](https://addons.mozilla.org/en-US/firefox/addon/youtube-section-looper/) \n\nhttps://preview.redd.it/fbkdk07pqwgg1.png?width=1424&format=png&auto=webp&s=4ee94f040bb09a8a9194f2264e0249cb5cc452dc\n\n  \n*Note: I love youtube enhancer extension which allows section looping. I was not using it because it was not in active development but there was a recent new update for it after a very long time. So, check it out if you want more complex features. Don't remember if its opensource but the extension has been a staple for a long time.*",
+      "author": "dragon_idli",
+      "postScore": 3,
+      "commentCount": 4,
+      "postedAt": "2026-02-01T16:17:06.000Z",
+      "topComments": [
+        "this looks like a lot of work just to recreate youtube's \"clip\" button.",
+        "thanks, i was looking for just this, commenting here to let you know that you did a good job!"
+      ],
+      "preScore": 60,
+      "googleSnippet": "It's a lightweight Firefox extension that lets you set a precise start and end time for any video segment and specify number of repetitions. Features: Set loops ...",
+      "querySource": "site:reddit.com youtube loop extension",
+      "intentScore": 80,
+      "leadType": "hot",
+      "reasoning": "The author has created a YouTube section looper due to frustration with existing looping options, indicating a strong need for this type of product.",
+      "replyOpportunity": "none",
+      "suggestedAngle": "You could mention how Repeatly offers similar functionality with additional features, but since the author has already built their own solution, it may not be appropriate to reply."
+    },
+    {
+      "url": "https://www.reddit.com/r/transcribe/comments/1t7xddi/made_a_free_web_tool_for_transcribing_off_youtube/",
+      "platform": "reddit",
+      "subreddit": "transcribe",
+      "title": "Made a free web tool for transcribing off YouTube — A–B loop, bookmarks, slow-down",
+      "content": "I transcribe solos off YouTube and got tired of the workflow — no proper A–B loop, no way to save where the bridge or solo starts, juggling extensions. So I built YTranscribe.\n\nPaste any YouTube URL and you get A–B looping, bookmarked timestamps for sections, variable speed, and keyboard shortcuts so you don't put the instrument down to hit pause. Projects save in your browser, no signup needed. Sign up if you want them synced across devices.\n\nFree, no ads. Built it for my own transcribing, sharing in case it's useful to anyone else.\n\n[ytranscribe.com](https://ytranscribe.com)",
+      "author": "bg3-elden-ring",
+      "postScore": 5,
+      "commentCount": 9,
+      "postedAt": "2026-05-09T06:51:55.000Z",
+      "topComments": [
+        "**Actually read this**\n\n- Thank you for posting to /r/transcribe. Keep in mind music transcription is a specialized skill, in the same realm as teaching, composing, or recording. Therefore, many transcribers may ask for a commission to take on a job. Expect anywhere from $5-30 (or more) **per minute** of music, depending on the instrumentation / complexity. \n\n- It is **possible** for someone to come along and do it for free, just don't count on it. \n\n- If exchanging payment, stay safe by checkin",
+        "Thanks! Will try that soon👍",
+        "Wow. Thank you!  I wish there was an “about” page w your backstory.  "
+      ],
+      "preScore": 60,
+      "googleSnippet": "Paste any YouTube URL and you get A–B looping, bookmarked timestamps for sections, variable speed, and keyboard shortcuts so you don't put the instrument down ...",
+      "querySource": "site:reddit.com youtube ab repeat",
+      "intentScore": 70,
+      "leadType": "warm",
+      "reasoning": "The author describes specific pain points related to looping and transcribing YouTube videos, indicating a clear need for a solution like Repeatly.",
+      "replyOpportunity": "comment",
+      "suggestedAngle": "You could mention how Repeatly offers seamless looping for specific sections of YouTube videos, which might enhance their transcribing experience."
+    }
+  ],
+  "failures": []
+}

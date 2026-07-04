@@ -64,9 +64,15 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const { data } = await api.post("/auth/refresh");
-      const { accessToken, user } = data;
-      useAuthStore.getState().setAuth(user, accessToken);
+      // Send refreshToken in body as fallback — third-party cookie blocking
+      // (Chrome default) means the httpOnly cookie often can't reach the backend.
+      const storedRt = useAuthStore.getState().refreshToken;
+      const { data } = await api.post(
+        "/auth/refresh",
+        storedRt ? { refreshToken: storedRt } : {},
+      );
+      const { accessToken, refreshToken: newRt, user } = data;
+      useAuthStore.getState().setAuth(user, accessToken, newRt ?? null);
       processQueue(null, accessToken);
       originalRequest.headers.Authorization = `Bearer ${accessToken}`;
       return api(originalRequest);

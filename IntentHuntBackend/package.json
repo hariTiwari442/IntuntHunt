@@ -1,0 +1,14 @@
+{
+  "name": "intent-hunt-backend",
+  "private": true,
+  "scripts": {
+    "mock:server": "cd mock-server && npm start",
+    "main": "cd main-backend && npm run dev",
+    "keyword": "cd keyword-service && npm run dev",
+    "keyword:mock": "cd keyword-service && npm run dev:mock",
+    "crawler:api": "cd crawler-service && npm run api",
+    "crawler:api:mock": "cd crawler-service && npm run api:mock",
+    "crawler:worker": "cd crawler-service && npm run worker",
+    "crawler:worker:mock": "cd crawler-service && npm run worker:mock"
+  }
+}

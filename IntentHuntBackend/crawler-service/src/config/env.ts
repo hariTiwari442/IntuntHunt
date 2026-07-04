@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { config } from 'dotenv';
-config();
+// quiet: true → suppresses dotenv's tip-message to stdout that pollutes JSON output
+config({ quiet: true });
 
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -16,9 +17,17 @@ const EnvSchema = z.object({
   REPLY_INTENT_THRESHOLD: z.coerce.number().min(0).max(100).default(85),
   APIFY_API_KEY: z.string().min(1, 'APIFY_API_KEY is required'),
   APIFY_BASE_URL: z.string().url().optional(),
-  SCRAPECREATORS_API_KEY: z.string().min(1, 'SCRAPECREATORS_API_KEY is required'),
+  // At least one of SCRAPECREATORS_API_KEY or SCRAPECREATORS_API_KEYS must be set.
+  // _KEYS (plural, comma-separated) takes precedence when both are present.
+  SCRAPECREATORS_API_KEY: z.string().optional(),
+  SCRAPECREATORS_API_KEYS: z.string().optional(),
   SCRAPECREATORS_BASE_URL: z.string().url().optional(),
   HN_BASE_URL: z.string().url().optional(),
+  // Serper.dev (Google search) — required for Step 2.
+  // Optional in env validation so the service still starts during dev transition;
+  // step2 throws a clear error if it's missing when called.
+  SERPER_API_KEY: z.string().optional(),
+  SERPER_BASE_URL: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -29,6 +38,12 @@ const result = EnvSchema.safeParse(process.env);
 if (!result.success) {
   console.error('❌ Invalid environment variables:');
   console.error(result.error.flatten().fieldErrors);
+  process.exit(1);
+}
+
+// Cross-field check — must have at least one ScrapeCreators key source
+if (!result.data.SCRAPECREATORS_API_KEY && !result.data.SCRAPECREATORS_API_KEYS) {
+  console.error('❌ Either SCRAPECREATORS_API_KEY or SCRAPECREATORS_API_KEYS must be set');
   process.exit(1);
 }
 

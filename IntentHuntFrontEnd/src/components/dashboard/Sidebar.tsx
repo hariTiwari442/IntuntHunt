@@ -14,7 +14,6 @@ import {
   LogOut,
   ChevronsLeft,
   ChevronsRight,
-  Crown,
   ExternalLink,
 } from "lucide-react";
 
@@ -77,24 +76,21 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         })}
       </nav>
 
-      {/* Plan badge */}
+      {/* Plan line — minimal text-only indicator. Starter still gets a
+          subtle Upgrade link; paid plans just show "Pro Plan" / "Agency Plan". */}
       {!collapsed && (
-        <div className="mx-3 mb-3 p-3 rounded-xl border border-border-default bg-bg-muted">
-          <div className="flex items-center gap-2 mb-2">
-            <Crown size={14} className="text-accent" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-              {features.label} Plan
-            </span>
-          </div>
-          {features.jobsPerMonth !== null && (
-            <p className="text-xs text-text-tertiary">{features.jobsPerMonth} products/month</p>
+        <div className="mx-3 mb-3 px-3 py-2 flex items-center justify-between">
+          <span className="text-xs text-text-secondary">
+            {features.label} Plan
+          </span>
+          {plan === "starter" && (
+            <Link
+              href="/pricing"
+              className="text-xs text-accent hover:text-accent-hover transition-colors"
+            >
+              Upgrade
+            </Link>
           )}
-          <Link
-            href="/pricing"
-            className="text-xs text-accent hover:text-accent-hover transition-colors mt-1 inline-block"
-          >
-            Upgrade
-          </Link>
         </div>
       )}
 

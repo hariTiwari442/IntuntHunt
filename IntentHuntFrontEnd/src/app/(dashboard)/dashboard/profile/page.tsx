@@ -8,12 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlan } from "@/hooks/usePlan";
+import { useSubscription, useOpenPortal, daysUntilTrialEnd } from "@/hooks/useSubscription";
 import api from "@/lib/api";
-import { User, Crown, Mail, Shield } from "lucide-react";
+import { User, Crown, Mail, Shield, ExternalLink, Loader2 } from "lucide-react";
 
 export default function ProfilePage() {
   const { user, fetchProfile } = useAuth();
   const { features } = usePlan();
+  const { data: subscription } = useSubscription();
+  const openPortal = useOpenPortal();
   const [name, setName] = useState(user?.name || "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -88,7 +91,7 @@ export default function ProfilePage() {
 
         {/* Sidebar column — plan + extras */}
         <div className="space-y-6 min-w-0">
-          {/* Plan card */}
+          {/* Plan card — driven by live subscription state */}
           <Card className="!p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-11 h-11 rounded-2xl bg-accent-soft border border-accent/20 flex items-center justify-center shrink-0">
@@ -107,6 +110,39 @@ export default function ProfilePage() {
               </div>
             </div>
 
+            {/* Live status row */}
+            {subscription && (
+              <div className="mb-4 p-3 rounded-lg bg-bg-muted border border-border-default">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
+                    Status
+                  </span>
+                  <StatusPill status={subscription.planStatus} />
+                </div>
+                {subscription.planStatus === "trialing" && (
+                  <p className="text-xs text-text-secondary">
+                    {(() => {
+                      const days = daysUntilTrialEnd(subscription);
+                      if (days === null) return "Trial active";
+                      if (days === 0)    return "Trial ends today";
+                      return `${days} day${days === 1 ? "" : "s"} left in trial`;
+                    })()}
+                  </p>
+                )}
+                {subscription.planStatus === "active" && subscription.currentPeriodEnd && (
+                  <p className="text-xs text-text-secondary">
+                    {subscription.cancelAtPeriodEnd ? "Ends" : "Renews"}{" "}
+                    {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                  </p>
+                )}
+                {subscription.billingInterval && (
+                  <p className="text-[11px] text-text-tertiary mt-1">
+                    Billed {subscription.billingInterval === "year" ? "annually" : "monthly"}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="space-y-2 mb-5">
               <div className="text-[11px] font-bold uppercase tracking-wider text-text-secondary mb-1.5">
                 Sources
@@ -123,11 +159,34 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <a href="/pricing" className="block">
-              <Button variant="secondary" size="sm" className="w-full">
-                {features.name === "agency" ? "Manage Plan" : "Upgrade Plan"}
+            {/* CTA depends on whether they have an active subscription */}
+            {subscription?.dodoSubscriptionId ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                onClick={() => openPortal.mutate()}
+                disabled={openPortal.isPending}
+              >
+                {openPortal.isPending ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Opening portal…
+                  </>
+                ) : (
+                  <>
+                    Manage subscription
+                    <ExternalLink size={13} />
+                  </>
+                )}
               </Button>
-            </a>
+            ) : (
+              <a href="/pricing" className="block">
+                <Button variant="secondary" size="sm" className="w-full">
+                  {features.name === "agency" ? "Manage Plan" : "Upgrade Plan"}
+                </Button>
+              </a>
+            )}
           </Card>
 
           {/* Help / contact card */}
@@ -136,7 +195,7 @@ export default function ProfilePage() {
             <p className="text-xs text-text-secondary leading-relaxed mb-4">
               Questions about your plan, billing, or how LeadPulse works? Reach out — we usually reply within a few hours.
             </p>
-            <a href="mailto:hi@leadpulse.io">
+            <a href="mailto:support@leadpulse.io">
               <Button variant="secondary" size="sm" className="w-full">
                 Contact support
               </Button>
@@ -145,5 +204,22 @@ export default function ProfilePage() {
         </div>
       </div>
     </>
+  );
+}
+
+function StatusPill({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    active:    "bg-green-100 text-green-700",
+    trialing:  "bg-accent-soft text-accent",
+    past_due:  "bg-red-100 text-red-700",
+    canceled:  "bg-bg-muted text-text-tertiary",
+    paused:    "bg-amber-100 text-amber-700",
+    incomplete:"bg-bg-muted text-text-tertiary",
+  };
+  const label = status.replace("_", " ");
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${styles[status] ?? "bg-bg-muted text-text-tertiary"}`}>
+      {label}
+    </span>
   );
 }

@@ -1,0 +1,47 @@
+# Skip files we don't want uploaded to Cloud Build / Cloud Run.
+# Mirrors .gitignore + a few extras.
+
+# Dependencies (rebuilt inside Docker)
+node_modules/
+.pnp/
+.pnp.js
+
+# Local env files — set via Cloud Run console / gcloud secrets
+.env
+.env.local
+.env.development
+.env.production
+.env.mock
+
+# Build output
+dist/
+build/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test
+coverage/
+.nyc_output/
+
+# Git
+.git/
+.gitignore
+
+# Prisma generated client (regenerated inside Docker)
+node_modules/.prisma/
+
+# Misc
+README.md
+*.md

@@ -1,11 +1,12 @@
 export interface ProductIntelligence {
-  productName:  string;
-  category:     string;
-  problem:      string;
-  audience:     string;
-  pains:        string[];
-  alternatives: string[];
-  triggers:     string[];
+  productName:    string;
+  category:       string;
+  problem:        string;
+  audience:       string;
+  pains:          string[];
+  alternatives:   string[];
+  triggers:       string[];
+  searchPhrases:  string[];  // Literal phrases buyers likely TYPE in Reddit/HN search
 }
 
 export interface PlatformQueries {
