@@ -144,6 +144,11 @@ export const leadRepository = {
     await prisma.lead.update({ where: { id }, data });
   },
 
+  /** Permanently remove a lead the user doesn't want to see anymore. */
+  async delete(id: string): Promise<void> {
+    await prisma.lead.delete({ where: { id } });
+  },
+
   async listByProduct(productId: string, options: { limit?: number; minIntentScore?: number }) {
     return prisma.lead.findMany({
       where: {

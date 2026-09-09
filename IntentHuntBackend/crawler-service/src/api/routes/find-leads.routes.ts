@@ -132,6 +132,25 @@ export async function leadEngineRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  // ── DELETE /api/v1/leads/:leadId ──
+  // Permanently removes a lead the user doesn't want to see anymore.
+  app.delete<{ Params: { leadId: string } }>(
+    "/leads/:leadId",
+    async (request, reply) => {
+      const { leadId } = request.params;
+
+      const lead = await prisma.lead.findUnique({
+        where:  { id: leadId },
+        select: { searchRun: { select: { userId: true } } },
+      });
+      if (!lead) throw new NotFoundError("Lead", leadId);
+      if (lead.searchRun.userId !== request.userId) throw new ForbiddenError();
+
+      await leadRepository.delete(leadId);
+      reply.send({ message: "Lead deleted", leadId });
+    },
+  );
+
   // ── POST /api/v1/products/:productId/cleanup ──
   // Called by main-backend after deleting a product. Removes the crawler-side
   // search_runs (and cascades to leads + seen_urls).
