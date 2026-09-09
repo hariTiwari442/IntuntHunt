@@ -81,7 +81,13 @@ export function startReplyGenWorker(): Worker {
     async (job) => {
       await process(job.data);
     },
-    { connection: bullmqRedis, concurrency: 5 },
+    {
+      connection: bullmqRedis,
+      concurrency: 5,
+      // See orchestrator.worker.ts — same reasoning: cut the default 30s
+      // stalled-job check down to every 5min to reduce idle Redis commands.
+      stalledInterval: 5 * 60 * 1000,
+    },
   );
 
   worker.on("failed", (job, err) => {

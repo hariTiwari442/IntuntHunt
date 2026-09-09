@@ -235,7 +235,15 @@ export function startOrchestratorWorker(): Worker {
         throw err;
       }
     },
-    { connection: bullmqRedis, concurrency: 2 },
+    {
+      connection: bullmqRedis,
+      concurrency: 2,
+      // Default stalled-job check is every 30s, forever, per worker — on a
+      // metered Redis (Upstash free tier) that's a constant background
+      // command drain even with zero jobs running. 5 minutes is plenty for
+      // this app's scale (a stuck job just gets detected a bit later).
+      stalledInterval: 5 * 60 * 1000,
+    },
   );
 
   worker.on("ready", () => logger.info("[orchestrator] worker ready"));
