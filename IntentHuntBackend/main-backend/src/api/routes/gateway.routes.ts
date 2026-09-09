@@ -208,6 +208,12 @@ export async function gatewayRoutes(app: FastifyInstance): Promise<void> {
     return proxy(request, reply, env.CRAWLER_SERVICE_URL, `/api/v1/leads/${leadId}`);
   });
 
+  // DELETE /leads/:leadId
+  app.delete('/leads/:leadId', async (request, reply) => {
+    const { leadId } = request.params as { leadId: string };
+    return proxy(request, reply, env.CRAWLER_SERVICE_URL, `/api/v1/leads/${leadId}`);
+  });
+
   // GET /products/:productId/leads
   app.get('/products/:productId/leads', async (request, reply) => {
     const { productId } = request.params as { productId: string };
@@ -232,8 +238,9 @@ async function proxy(
     const { statusCode, headers, body } = await undiciRequest(url, {
       method: request.method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
       headers: {
-        'content-type': 'application/json',
-        'x-user-id':    request.userId,
+        'content-type':  'application/json',
+        'x-user-id':      request.userId,
+        'x-internal-key': env.INTERNAL_SERVICE_KEY,
       },
       body: request.method !== 'GET' ? JSON.stringify(request.body ?? {}) : null,
     });

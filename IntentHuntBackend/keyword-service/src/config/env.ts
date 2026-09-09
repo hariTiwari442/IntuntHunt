@@ -12,6 +12,11 @@ const EnvSchema = z.object({
     .default("info"),
   OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY is required"),
   OPENAI_BASE_URL: z.string().url().optional(),
+  // Shared secret main-backend would send as `X-Internal-Key`. This service
+  // is publicly reachable on Cloud Run and otherwise trusts X-User-Id
+  // blindly — without this, anyone could hit /generate and burn OpenAI
+  // credits with no auth at all.
+  INTERNAL_SERVICE_KEY: z.string().min(1, "INTERNAL_SERVICE_KEY is required"),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

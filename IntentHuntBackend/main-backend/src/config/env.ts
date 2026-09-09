@@ -18,6 +18,13 @@ const EnvSchema = z.object({
   KEYWORD_SERVICE_URL: z.string().url().default('http://localhost:3002'),
   CRAWLER_SERVICE_URL: z.string().url().default('http://localhost:3001'),
 
+  // Shared secret sent as `X-Internal-Key` on every gateway → downstream-service
+  // call. crawler-service and keyword-service reject requests without it —
+  // otherwise anyone who finds their public Cloud Run URL could forge an
+  // X-User-Id header and act as any user (or, for keyword-service, just burn
+  // OpenAI credits). Must match INTERNAL_SERVICE_KEY in both of those services.
+  INTERNAL_SERVICE_KEY: z.string().min(1, 'INTERNAL_SERVICE_KEY is required'),
+
   // Dodo Payments (Merchant of Record)
   // - API key: from Dodo dashboard → Developers → API Keys
   // - Webhook secret: Svix-format `whsec_...` from the configured webhook endpoint
