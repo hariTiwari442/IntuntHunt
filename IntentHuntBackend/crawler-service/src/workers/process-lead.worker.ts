@@ -1,29 +1,32 @@
 /**
- * Process-lead worker.
+ * Process-lead poller.
  * ─────────────────────
- * One job per pre-qualified URL. Runs Steps 4+5 (fetch full content via
- * ScrapeCreators + deep-score via GPT-4o-mini). Updates the lead row in DB
- * (Realtime fires), then:
+ * One item per pre-qualified lead. Runs Steps 4+5 (fetch full content via
+ * ScrapeCreators — currently snippet-only, see note below — + deep-score via
+ * GPT-4o-mini). Updates the lead row in DB (Realtime fires), then:
  *
- *   - If intentScore >= 60 → enqueue REPLY_GEN job
  *   - Increments SearchRun.processedUrls
  *   - If processedUrls === totalUrls → marks SearchRun completed
  *
- * Concurrency: 3 (ScrapeCreators rate-friendly).
+ * No explicit reply-gen hand-off: a lead that ends up with intentScore >= 60
+ * (and isn't a competitor thread / has a real reply opportunity) is picked
+ * up automatically by the reply-gen poller on its own next tick, because
+ * that's exactly the condition it watches for.
+ *
+ * "Queue" here is just `WHERE contentFetchedAt IS NULL` — every lead the
+ * orchestrator inserts starts out that way, and this stage is the only
+ * thing that ever sets it. Batches are fetched, fully processed, and
+ * awaited before the next fetch — so within this one poller there's no
+ * chance of the same lead being picked up twice.
+ *
+ * Concurrency: 3 (ScrapeCreators rate-friendly) — matches the old BullMQ setting.
  */
 
-import { Worker } from "bullmq";
-import { bullmqRedis } from "../cache/redis.client.js";
 import { logger } from "../utils/logger.js";
 import { prisma } from "../db/prisma.client.js";
 import { searchRunRepository } from "../db/repositories/search-run.repository.js";
 import { leadRepository } from "../db/repositories/lead.repository.js";
-import {
-  QueueNames,
-  replyGenQueue,
-  type ProcessLeadPayload,
-  type ReplyGenPayload,
-} from "../queues/queue.registry.js";
+import { startPoller, type Poller } from "./poller.js";
 // fetchPost is intentionally not imported — snippet-only mode (Step 4 skipped).
 // Re-import "../lib/scrapecreators.js" if you want to bring back full content fetch.
 // import { fetchPost } from "../lib/scrapecreators.js";
@@ -32,6 +35,12 @@ import type { ProductIntelligence } from "../pipeline/types.js";
 import { z } from "zod";
 
 const REPLY_THRESHOLD = 60;
+
+interface ProcessLeadItem {
+  leadId:      string;
+  searchRunId: string;
+  productId:   string;
+}
 
 // ── Deep-score prompt (mirrors step4-5-process-lead.ts) ─────────────────────
 
@@ -220,11 +229,16 @@ function clampLeadType(score: number, isCompetitorThread: boolean) {
 
 // ── Main process function ───────────────────────────────────────────────────
 
-async function process(payload: ProcessLeadPayload): Promise<void> {
-  const { searchRunId, productId, leadId, intelligenceJson } = payload;
+async function process(item: ProcessLeadItem): Promise<void> {
+  const { leadId, searchRunId, productId } = item;
   const log = logger.child({ searchRunId, leadId });
 
-  const intelligence = JSON.parse(intelligenceJson) as ProductIntelligence;
+  const product = await prisma.product.findUnique({
+    where:  { id: productId },
+    select: { intelligence: true },
+  });
+  if (!product) throw new Error(`Product ${productId} not found`);
+  const intelligence = product.intelligence as unknown as ProductIntelligence;
 
   // Load the lead row (already inserted with pre-score by orchestrator)
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
@@ -235,6 +249,10 @@ async function process(payload: ProcessLeadPayload): Promise<void> {
   // (captured in Step 2) as the content for deep scoring. Lower fidelity
   // than full post + comments, but free and works on any tier.
   // To re-enable: replace the block below with the fetchPost(...) call.
+  //
+  // This also doubles as the "claim" marker for this stage — once it's
+  // set, WHERE contentFetchedAt IS NULL no longer matches this row, even
+  // if every step after this one ends up failing on every retry.
   const snippetContent = lead.googleSnippet ?? "";
 
   await leadRepository.updateContent(leadId, {
@@ -276,14 +294,11 @@ async function process(payload: ProcessLeadPayload): Promise<void> {
 
   log.info({ score: finalScore, leadType: finalLeadType }, "[process-lead] scored");
 
-  // ── Enqueue reply gen if eligible ────────────────────────────────
-  if (finalScore >= REPLY_THRESHOLD && !isCompetitor && score.replyOpportunity !== "none") {
-    await replyGenQueue.add("reply-gen", {
-      leadId,
-      intelligenceJson,
-    } satisfies ReplyGenPayload);
-    log.info("[process-lead] reply-gen enqueued");
-  }
+  // No explicit reply-gen enqueue — the reply-gen poller's own WHERE clause
+  // (deepScoredAt set, replyGeneratedAt null, intentScore >= 60, not a
+  // competitor, replyOpportunity != "none") already matches this row now
+  // that updateScore() above set deepScoredAt. It'll pick it up on its
+  // next tick regardless of whether we do anything else here.
 
   // ── Update SearchRun counters + completion check ─────────────────
   const { processedUrls, totalUrls } = await searchRunRepository.incrementProcessed(searchRunId);
@@ -301,41 +316,54 @@ async function process(payload: ProcessLeadPayload): Promise<void> {
   }
 }
 
-// ── Worker boot ─────────────────────────────────────────────────────────────
+// ── Claiming ─────────────────────────────────────────────────────────────────
 
-export function startProcessLeadWorker(): Worker {
-  const worker = new Worker<ProcessLeadPayload>(
-    QueueNames.PROCESS_LEAD,
-    async (job) => {
-      await process(job.data);
-    },
-    {
-      connection: bullmqRedis,
-      concurrency: 3,
-      // See orchestrator.worker.ts — same reasoning: cut the default 30s
-      // stalled-job check down to every 5min to reduce idle Redis commands.
-      stalledInterval: 5 * 60 * 1000,
-    },
-  );
+async function fetchPendingLeads(limit: number): Promise<ProcessLeadItem[]> {
+  const rows = await prisma.lead.findMany({
+    where:   { contentFetchedAt: null },
+    orderBy: { createdAt: "asc" },
+    take:    limit,
+    select:  { id: true, searchRunId: true, productId: true },
+  });
+  return rows.map((r) => ({ leadId: r.id, searchRunId: r.searchRunId, productId: r.productId }));
+}
 
-  worker.on("failed", async (job, err) => {
-    if (!job) return;
-    logger.warn({ jobId: job.id, leadId: job.data.leadId, err: err?.message },
-      "[process-lead] job failed");
-    // After all retries exhausted, still increment processedUrls so the
-    // SearchRun completion check fires correctly.
-    if (job.attemptsMade >= (job.opts.attempts ?? 3)) {
+// ── Poller boot ─────────────────────────────────────────────────────────────
+
+export function startProcessLeadWorker(): Poller {
+  return startPoller<ProcessLeadItem>({
+    name:           "process-lead",
+    pollIntervalMs: 3_000,
+    batchSize:      3,     // matches the old BullMQ concurrency
+    attempts:       3,
+    backoffMs:      5_000,
+    fetchBatch:     fetchPendingLeads,
+    processOne:     process,
+    onItemFailed: async (item) => {
+      logger.warn({ leadId: item.leadId }, "[process-lead] giving up on lead after final failure");
+      // Still count it as processed (mirrors old BullMQ "failed" handler)
+      // so the SearchRun completion check fires correctly, AND make sure
+      // contentFetchedAt actually gets set even if every attempt died
+      // before reaching that line — otherwise this row would match
+      // fetchPendingLeads forever and retry on every future poll tick.
       try {
-        const { processedUrls, totalUrls } = await searchRunRepository.incrementProcessed(job.data.searchRunId);
+        const lead = await prisma.lead.findUnique({
+          where:  { id: item.leadId },
+          select: { contentFetchedAt: true, googleSnippet: true },
+        });
+        if (lead && !lead.contentFetchedAt) {
+          await leadRepository.updateContent(item.leadId, {
+            content:     lead.googleSnippet ?? "",
+            topComments: [],
+          });
+        }
+        const { processedUrls, totalUrls } = await searchRunRepository.incrementProcessed(item.searchRunId);
         if (totalUrls != null && processedUrls >= totalUrls) {
-          await searchRunRepository.markCompleted(job.data.searchRunId);
+          await searchRunRepository.markCompleted(item.searchRunId);
         }
       } catch (e) {
-        logger.error({ e }, "[process-lead] failed to increment after final failure");
+        logger.error({ e }, "[process-lead] failed to clean up after final failure");
       }
-    }
+    },
   });
-
-  worker.on("ready", () => logger.info("[process-lead] worker ready"));
-  return worker;
 }

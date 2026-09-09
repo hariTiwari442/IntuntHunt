@@ -16,7 +16,6 @@ import { logger } from '../utils/logger.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { leadEngineRoutes } from './routes/find-leads.routes.js';
 import { prisma } from '../db/prisma.client.js';
-import { redisClient } from '../cache/redis.client.js';
 
 async function buildServer() {
   const app = Fastify({
@@ -35,8 +34,11 @@ async function buildServer() {
   await app.register(cors, {
     origin: env.NODE_ENV === 'production' ? false : true,
   });
+  // In-memory store — was Redis-backed, but that meant every single
+  // request hit Redis on top of whatever the pollers were already using,
+  // and this service only ever runs as one Cloud Run instance at this
+  // scale, so there's no cross-instance state to share anyway.
   await app.register(rateLimit, {
-    redis: redisClient,
     max:   100,
     timeWindow: '1 minute',
     keyGenerator: (req) => req.headers['x-user-id'] as string ?? req.ip,
@@ -66,7 +68,6 @@ async function main() {
     logger.info({ signal }, 'Shutting down API server...');
     await app.close();
     await prisma.$disconnect();
-    await redisClient.quit();
     process.exit(0);
   };
 

@@ -1,14 +1,16 @@
 /**
  * Worker process entry point.
- * Starts all three lead-engine workers. Scale by running N replicas.
- * Stateless — safe to run multiple instances concurrently.
+ * Starts all three lead-engine pollers (see workers/poller.ts for why
+ * they're plain DB polling loops rather than BullMQ workers). Scale by
+ * running N replicas — each poller's claim step is safe under concurrent
+ * instances (see the "claiming" comments in each worker file).
  *
  * Cloud Run note:
  *   Cloud Run requires the container to bind to $PORT for its startup
- *   probe. Workers don't normally need an HTTP server, so we spin up a
+ *   probe. Pollers don't normally need an HTTP server, so we spin up a
  *   tiny one with just /health and /readiness. Set the Cloud Run service
- *   to `--no-cpu-throttling --min-instances 1` so BullMQ workers can
- *   actually run continuously between HTTP requests.
+ *   to `--no-cpu-throttling --min-instances 1` so the pollers can actually
+ *   run continuously between HTTP requests.
  */
 
 import '../config/env.js';   // validate env vars at startup
@@ -19,7 +21,6 @@ import { startProcessLeadWorker }  from '../workers/process-lead.worker.js';
 import { startReplyGenWorker }     from '../workers/reply-gen.worker.js';
 import { logger } from '../utils/logger.js';
 import { prisma } from '../db/prisma.client.js';
-import { redisClient } from '../cache/redis.client.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
 
@@ -58,7 +59,6 @@ async function main() {
     healthServer.close();
     await Promise.all(workers.map((w) => w.close()));
     await prisma.$disconnect();
-    await redisClient.quit();
     logger.info('Worker process stopped');
     process.exit(0);
   };

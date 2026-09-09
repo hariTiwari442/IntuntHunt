@@ -8,11 +8,16 @@ import type { SearchRunStatus } from "@prisma/client";
 
 export const searchRunRepository = {
   async create(data: { productId: string; userId: string }) {
+    // Starts "pending" — the orchestrator poller flips it to "running" once
+    // it actually claims the row (see orchestrator.worker.ts). Previously
+    // this went straight to "running" because a BullMQ job was enqueued in
+    // the same request; now there's nothing to enqueue, so "pending" is the
+    // only honest status until a poll tick picks it up (usually <3s later).
     return prisma.searchRun.create({
       data: {
         productId: data.productId,
         userId:    data.userId,
-        status:    "running",
+        status:    "pending",
       },
     });
   },

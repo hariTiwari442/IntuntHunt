@@ -7,7 +7,6 @@ const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(3001),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
-  REDIS_URL: z.string().min(1, 'REDIS_URL is required'),
   // Shared secret main-backend sends as `X-Internal-Key`. This service is
   // publicly reachable on Cloud Run and otherwise trusts X-User-Id blindly —
   // without this check anyone could forge that header and act as any user.

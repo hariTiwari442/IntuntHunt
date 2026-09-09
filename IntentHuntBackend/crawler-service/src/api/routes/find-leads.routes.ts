@@ -17,10 +17,6 @@ import { authMiddleware } from "../middleware/auth.middleware.js";
 import { searchRunRepository } from "../../db/repositories/search-run.repository.js";
 import { leadRepository } from "../../db/repositories/lead.repository.js";
 import {
-  orchestratorQueue,
-  type OrchestratorPayload,
-} from "../../queues/queue.registry.js";
-import {
   NotFoundError,
   ForbiddenError,
 } from "../../utils/errors.js";
@@ -56,15 +52,10 @@ export async function leadEngineRoutes(app: FastifyInstance): Promise<void> {
       if (!product) throw new NotFoundError("Product", productId);
       if (product.userId !== userId) throw new ForbiddenError();
 
-      // Create the SearchRun row (status: running)
+      // Create the SearchRun row (status: pending). Nothing to enqueue —
+      // the orchestrator poller picks up pending rows on its own within a
+      // few seconds (see workers/orchestrator.worker.ts).
       const run = await searchRunRepository.create({ productId, userId });
-
-      // Enqueue the orchestrator job — Steps 1+2+3 run inline in the worker
-      await orchestratorQueue.add("orchestrate", {
-        searchRunId: run.id,
-        productId,
-        userId,
-      } satisfies OrchestratorPayload);
 
       reply.status(202).send({
         searchRunId: run.id,

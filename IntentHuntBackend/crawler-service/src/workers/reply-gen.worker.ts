@@ -1,34 +1,50 @@
 /**
- * Reply-gen worker.
+ * Reply-gen poller.
  * ──────────────────
- * One job per high-intent lead. Calls Step 6 (GPT-4o reply generator),
+ * One item per high-intent lead. Calls Step 6 (GPT-4o reply generator),
  * writes the suggested reply to the lead row (Realtime fires).
  *
  * If the AI returns replyPossible=false, we store an empty reply so the
  * frontend can show "No natural reply available" instead of a spinner.
+ *
+ * "Queue" here is `WHERE deepScoredAt IS NOT NULL AND replyGeneratedAt IS
+ * NULL AND intentScore >= 60 AND NOT isCompetitorThread AND
+ * replyOpportunity != 'none'` — exactly the condition process-lead's
+ * updateScore() satisfies for a qualifying lead. No explicit hand-off from
+ * that stage needed; this poller finds it on its own next tick.
  */
 
-import { Worker } from "bullmq";
-import { bullmqRedis } from "../cache/redis.client.js";
 import { logger } from "../utils/logger.js";
 import { prisma } from "../db/prisma.client.js";
 import { searchRunRepository } from "../db/repositories/search-run.repository.js";
 import { leadRepository } from "../db/repositories/lead.repository.js";
-import {
-  QueueNames,
-  type ReplyGenPayload,
-} from "../queues/queue.registry.js";
+import { startPoller, type Poller } from "./poller.js";
 import { generateOneReply } from "../pipeline/step6-reply-gen.js";
 import type { ProductIntelligence, ScoredLead } from "../pipeline/types.js";
 
-async function process(payload: ReplyGenPayload): Promise<void> {
-  const { leadId, intelligenceJson, productUrl } = payload;
-  const log = logger.child({ leadId });
+const REPLY_THRESHOLD = 60;
 
-  const intelligence = JSON.parse(intelligenceJson) as ProductIntelligence;
+interface ReplyGenItem {
+  leadId: string;
+}
+
+async function process(item: ReplyGenItem): Promise<void> {
+  const { leadId } = item;
+  const log = logger.child({ leadId });
 
   const row = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!row) throw new Error(`Lead ${leadId} not found`);
+
+  // Lead.productId is a plain scalar in this schema (no modeled Prisma
+  // relation to Product — that model is owned across a service boundary),
+  // so this is a separate query rather than an `include`.
+  const product = await prisma.product.findUnique({
+    where:  { id: row.productId },
+    select: { intelligence: true, productUrl: true },
+  });
+  if (!product) throw new Error(`Product ${row.productId} not found`);
+
+  const intelligence = product.intelligence as unknown as ProductIntelligence;
 
   // Build a ScoredLead-shaped object from the DB row to feed Step 6
   const scoredLead: ScoredLead = {
@@ -58,7 +74,7 @@ async function process(payload: ReplyGenPayload): Promise<void> {
   const output = await generateOneReply({
     lead:         scoredLead,
     intelligence,
-    ...(productUrl ? { productUrl } : {}),
+    ...(product.productUrl ? { productUrl: product.productUrl } : {}),
   });
 
   await leadRepository.updateReply(leadId, {
@@ -73,29 +89,47 @@ async function process(payload: ReplyGenPayload): Promise<void> {
   log.info({ replyPossible: output.replyPossible }, "[reply-gen] done");
 }
 
-// ── Worker boot ─────────────────────────────────────────────────────────────
+// ── Claiming ─────────────────────────────────────────────────────────────────
 
-export function startReplyGenWorker(): Worker {
-  const worker = new Worker<ReplyGenPayload>(
-    QueueNames.REPLY_GEN,
-    async (job) => {
-      await process(job.data);
+async function fetchPendingReplyGen(limit: number): Promise<ReplyGenItem[]> {
+  const rows = await prisma.lead.findMany({
+    where: {
+      deepScoredAt:       { not: null },
+      replyGeneratedAt:   null,
+      intentScore:        { gte: REPLY_THRESHOLD },
+      isCompetitorThread: false,
+      replyOpportunity:   { not: "none" },
     },
-    {
-      connection: bullmqRedis,
-      concurrency: 5,
-      // See orchestrator.worker.ts — same reasoning: cut the default 30s
-      // stalled-job check down to every 5min to reduce idle Redis commands.
-      stalledInterval: 5 * 60 * 1000,
-    },
-  );
-
-  worker.on("failed", (job, err) => {
-    if (!job) return;
-    logger.warn({ jobId: job.id, leadId: job.data.leadId, err: err?.message },
-      "[reply-gen] job failed");
+    orderBy: { deepScoredAt: "asc" },
+    take:    limit,
+    select:  { id: true },
   });
+  return rows.map((r) => ({ leadId: r.id }));
+}
 
-  worker.on("ready", () => logger.info("[reply-gen] worker ready"));
-  return worker;
+// ── Poller boot ─────────────────────────────────────────────────────────────
+
+export function startReplyGenWorker(): Poller {
+  return startPoller<ReplyGenItem>({
+    name:           "reply-gen",
+    pollIntervalMs: 3_000,
+    batchSize:      5,     // matches the old BullMQ concurrency
+    attempts:       2,
+    backoffMs:      3_000,
+    fetchBatch:     fetchPendingReplyGen,
+    processOne:     process,
+    onItemFailed: async (item) => {
+      logger.warn({ leadId: item.leadId }, "[reply-gen] giving up on lead after final failure");
+      // Mark it "done" (empty reply) even on total failure — otherwise this
+      // row keeps matching fetchPendingReplyGen and gets retried forever.
+      try {
+        await leadRepository.updateReply(item.leadId, {
+          suggestedReply:      null,
+          replyConfidenceNote: null,
+        });
+      } catch (e) {
+        logger.error({ e }, "[reply-gen] failed to mark lead done after final failure");
+      }
+    },
+  });
 }

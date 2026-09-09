@@ -1,29 +1,31 @@
 /**
- * Orchestrator worker.
+ * Orchestrator poller.
  * ─────────────────────
- * One job per "Find Leads" click. Runs Steps 1+2+3 inline (sequential), then
- * inserts pre-scored leads into the DB and fans out PROCESS_LEAD jobs.
+ * One "item" per "Find Leads" click. Runs Steps 1+2+3 inline (sequential),
+ * then inserts pre-scored leads into the DB. That's it — no fan-out step.
+ * Leads land with contentFetchedAt = null, which the process-lead poller
+ * treats as "pending" on its own; no explicit hand-off needed.
  *
- * Fast path: if the product already has cached intelligence + queries, skips
- * Step 1 (saves a GPT-4o call).
+ * Why inline 1+2+3 instead of separate stages? They're sequential anyway and
+ * complete in ~15s. Splitting them wouldn't add any parallelism.
  *
- * Why inline 1+2+3 instead of separate workers? They're sequential anyway and
- * complete in ~15s. Three queues would add Redis hops without any parallelism
- * benefit.
+ * Claiming: a SearchRun starts life with status "pending" (see
+ * search-run.repository.ts). This poller atomically flips one to "running"
+ * via an UPDATE guarded on it still being "pending" — if two poll ticks ever
+ * raced on the same row, only one would succeed (updateMany's count tells
+ * us which). It also reclaims rows stuck in "running" for >15 minutes,
+ * which only happens if a previous attempt crashed mid-run (e.g. the VM
+ * restarting) — Steps 1-3 are safe to redo: Step 1 uses the cached
+ * intelligence/queries once present, Step 2's seen-url filter skips
+ * already-processed URLs, and Step 3's lead insert skips duplicates on
+ * (productId, url).
  */
 
-import { Worker } from "bullmq";
-import { bullmqRedis } from "../cache/redis.client.js";
 import { logger } from "../utils/logger.js";
 import { prisma } from "../db/prisma.client.js";
 import { searchRunRepository } from "../db/repositories/search-run.repository.js";
 import { leadRepository } from "../db/repositories/lead.repository.js";
-import {
-  QueueNames,
-  processLeadQueue,
-  type OrchestratorPayload,
-  type ProcessLeadPayload,
-} from "../queues/queue.registry.js";
+import { startPoller, type Poller } from "./poller.js";
 import { runKeywordEngine } from "../pipeline/step1-keyword-engine.js";
 import { runGoogleSearch } from "../pipeline/step2-google-search.js";
 import { runPreScore } from "../pipeline/step3-pre-score.js";
@@ -33,8 +35,16 @@ import type {
   QueryBundle,
 } from "../pipeline/types.js";
 
-async function process(payload: OrchestratorPayload): Promise<void> {
-  const { searchRunId, productId, userId } = payload;
+interface OrchestratorItem {
+  searchRunId: string;
+  productId:   string;
+  userId:      string;
+}
+
+const STALE_RUNNING_MS = 15 * 60 * 1000;
+
+async function process(item: OrchestratorItem): Promise<void> {
+  const { searchRunId, productId } = item;
   const log = logger.child({ searchRunId, productId });
 
   log.info("[orchestrator] starting");
@@ -173,6 +183,8 @@ async function process(payload: OrchestratorPayload): Promise<void> {
   }
 
   // ── Insert pre-scored leads into DB (Realtime fires per row) ───────
+  // contentFetchedAt is left null on every row here — that's the signal
+  // the process-lead poller watches for. No explicit fan-out needed.
   const inserted = await leadRepository.createManyPreScored(
     preScore.passing.map((r) => ({
       productId,
@@ -188,28 +200,6 @@ async function process(payload: OrchestratorPayload): Promise<void> {
   );
   log.info({ inserted }, "[orchestrator] pre-scored leads inserted");
 
-  // ── Look up the row IDs (createMany doesn't return them in Prisma) ─
-  const leadRows = await prisma.lead.findMany({
-    where:  { searchRunId },
-    select: { id: true, url: true },
-  });
-
-  // ── Fan out PROCESS_LEAD jobs ──────────────────────────────────────
-  const intelligenceJson = JSON.stringify(intelligence);
-  await processLeadQueue.addBulk(
-    leadRows.map((row) => ({
-      name: "process-lead",
-      data: {
-        searchRunId,
-        productId,
-        leadId:           row.id,
-        intelligenceJson,
-      } satisfies ProcessLeadPayload,
-    })),
-  );
-
-  log.info({ enqueued: leadRows.length }, "[orchestrator] PROCESS_LEAD jobs enqueued");
-
   // Mark search run lastSearchedAt on the product
   await prisma.product.update({
     where: { id: productId },
@@ -217,35 +207,50 @@ async function process(payload: OrchestratorPayload): Promise<void> {
   });
 }
 
-// ── Worker boot ─────────────────────────────────────────────────────────────
+// ── Claiming ─────────────────────────────────────────────────────────────────
 
-export function startOrchestratorWorker(): Worker {
-  const worker = new Worker<OrchestratorPayload>(
-    QueueNames.ORCHESTRATOR,
-    async (job) => {
-      try {
-        await process(job.data);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        logger.error({ err, searchRunId: job.data.searchRunId }, "[orchestrator] failed");
-        // Mark the SearchRun as failed so frontend stops waiting
-        await searchRunRepository
-          .markFailed(job.data.searchRunId, msg)
-          .catch(() => {});
-        throw err;
-      }
+async function claimPendingSearchRuns(limit: number): Promise<OrchestratorItem[]> {
+  const candidates = await prisma.searchRun.findMany({
+    where: {
+      OR: [
+        { status: "pending" },
+        { status: "running", startedAt: { lt: new Date(Date.now() - STALE_RUNNING_MS) } },
+      ],
     },
-    {
-      connection: bullmqRedis,
-      concurrency: 2,
-      // Default stalled-job check is every 30s, forever, per worker — on a
-      // metered Redis (Upstash free tier) that's a constant background
-      // command drain even with zero jobs running. 5 minutes is plenty for
-      // this app's scale (a stuck job just gets detected a bit later).
-      stalledInterval: 5 * 60 * 1000,
-    },
-  );
+    orderBy: { startedAt: "asc" },
+    take: limit,
+    select: { id: true, productId: true, userId: true },
+  });
 
-  worker.on("ready", () => logger.info("[orchestrator] worker ready"));
-  return worker;
+  const claimed: OrchestratorItem[] = [];
+  for (const c of candidates) {
+    // Guard the UPDATE on the row not already being claimed by a
+    // concurrent tick — count === 1 means we won the race.
+    const res = await prisma.searchRun.updateMany({
+      where: { id: c.id, status: { in: ["pending", "running"] } },
+      data:  { status: "running", startedAt: new Date() },
+    });
+    if (res.count === 1) {
+      claimed.push({ searchRunId: c.id, productId: c.productId, userId: c.userId });
+    }
+  }
+  return claimed;
+}
+
+// ── Poller boot ─────────────────────────────────────────────────────────────
+
+export function startOrchestratorWorker(): Poller {
+  return startPoller<OrchestratorItem>({
+    name:           "orchestrator",
+    pollIntervalMs: 3_000,
+    batchSize:      2,     // matches the old BullMQ concurrency
+    attempts:       2,
+    backoffMs:      2_000,
+    fetchBatch:     claimPendingSearchRuns,
+    processOne:     process,
+    onItemFailed: async (item, err) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      await searchRunRepository.markFailed(item.searchRunId, msg).catch(() => {});
+    },
+  });
 }
