@@ -196,6 +196,12 @@ export async function gatewayRoutes(app: FastifyInstance): Promise<void> {
     return proxy(request, reply, env.CRAWLER_SERVICE_URL, `/api/v1/find-leads/${productId}`);
   });
 
+  // GET /products/:productId/search-runs — scan history for the sidebar
+  app.get('/products/:productId/search-runs', async (request, reply) => {
+    const { productId } = request.params as { productId: string };
+    return proxy(request, reply, env.CRAWLER_SERVICE_URL, `/api/v1/products/${productId}/search-runs`);
+  });
+
   // GET /search-runs/:searchRunId
   app.get('/search-runs/:searchRunId', async (request, reply) => {
     const { searchRunId } = request.params as { searchRunId: string };

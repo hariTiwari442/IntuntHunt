@@ -94,6 +94,49 @@ export async function leadEngineRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  // ── GET /api/v1/products/:productId/search-runs ──
+  // Scan history for a product — powers the "SCANS" list in the sidebar so
+  // the user can look at the results of one Find Leads click at a time.
+  app.get<{ Params: { productId: string } }>(
+    "/products/:productId/search-runs",
+    async (request, reply) => {
+      const { productId } = request.params;
+
+      const product = await prisma.product.findUnique({
+        where:  { id: productId },
+        select: { userId: true },
+      });
+      if (!product) throw new NotFoundError("Product", productId);
+      if (product.userId !== request.userId) throw new ForbiddenError();
+
+      const runs = await prisma.searchRun.findMany({
+        where:   { productId },
+        orderBy: { startedAt: "desc" },
+        take:    50,
+        select: {
+          id: true, status: true, startedAt: true, completedAt: true,
+          totalUrls: true, processedUrls: true, leadsScored: true,
+          errorMessage: true,
+          _count: { select: { leads: true } },
+        },
+      });
+
+      reply.send({
+        searchRuns: runs.map((r) => ({
+          searchRunId:  r.id,
+          status:       r.status,
+          startedAt:    r.startedAt.toISOString(),
+          completedAt:  r.completedAt?.toISOString() ?? null,
+          totalUrls:    r.totalUrls,
+          processedUrls: r.processedUrls,
+          leadsScored:  r.leadsScored,
+          errorMessage: r.errorMessage,
+          leadCount:    r._count.leads,
+        })),
+      });
+    },
+  );
+
   // ── PATCH /api/v1/leads/:leadId ──
   // Update user metadata on a lead (tags, viewed, status).
   app.patch<{ Params: { leadId: string } }>(
