@@ -43,3 +43,9 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# One-off maintenance/diagnostic scripts and their output. The
+# _deleted_backup_*.json files contain real user PII (emails, billing
+# IDs) exported before the Sept 2026 DB cleanup — never commit these.
+_*.mjs
+_deleted_backup_*.json
