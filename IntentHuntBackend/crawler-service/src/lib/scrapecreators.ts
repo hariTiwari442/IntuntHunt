@@ -8,6 +8,9 @@
  * Platform endpoints:
  *   Reddit:   /v1/reddit/post/comments?url=...&trim=true
  *   LinkedIn: /v1/linkedin/post?url=...&trim=true
+ *   Twitter:  /v1/twitter/tweet?url=...&trim=true
+ *             (no replies in this response — a separate "Comments" endpoint
+ *             exists for that, not wired up here; topComments is always [])
  */
 
 import { env } from "../config/env.js";
@@ -67,6 +70,26 @@ interface ScLinkedInResponse {
   author?:      { name?: string; profile_url?: string };
   stats?:       { total_reactions?: number; comments?: number };
   posted_at?:   { date?: string; timestamp?: number };
+}
+
+interface ScTwitterResponse {
+  legacy?: {
+    full_text?:      string;
+    created_at?:     string;
+    favorite_count?: number;
+    reply_count?:    number;
+    retweet_count?:  number;
+    quote_count?:    number;
+  };
+  core?: {
+    user_results?: {
+      result?: {
+        legacy?: {
+          screen_name?: string;
+        };
+      };
+    };
+  };
 }
 
 // ── Generic GET with key rotation ───────────────────────────────────────────
@@ -196,6 +219,34 @@ async function fetchLinkedInPost(url: string): Promise<Omit<RawLead, "preScore" 
   };
 }
 
+// ── Twitter fetcher ─────────────────────────────────────────────────────────
+
+async function fetchTwitterPost(url: string): Promise<Omit<RawLead, "preScore" | "googleSnippet" | "querySource">> {
+  const data = await scGet<ScTwitterResponse>("/v1/twitter/tweet", { url, trim: "true" });
+  const legacy = data.legacy ?? {};
+  const screenName = data.core?.user_results?.result?.legacy?.screen_name;
+
+  let postedAt: Date | null = null;
+  if (legacy.created_at) {
+    const d = new Date(legacy.created_at);
+    if (!isNaN(d.getTime())) postedAt = d;
+  }
+
+  const text = legacy.full_text ?? "";
+
+  return {
+    url,
+    platform:     "twitter",
+    title:        text.slice(0, 200) || "(no title)",
+    content:      text,
+    author:       screenName ? `@${screenName}` : null,
+    postScore:    legacy.favorite_count ?? 0,
+    commentCount: legacy.reply_count ?? 0,
+    postedAt,
+    topComments:  [], // tweet-details response has no replies; separate endpoint would be needed
+  };
+}
+
 // ── Public dispatch ─────────────────────────────────────────────────────────
 
 /**
@@ -208,5 +259,6 @@ export async function fetchPost(
 ): Promise<Omit<RawLead, "preScore" | "googleSnippet" | "querySource">> {
   if (platform === "reddit")   return fetchRedditPost(url);
   if (platform === "linkedin") return fetchLinkedInPost(url);
+  if (platform === "twitter")  return fetchTwitterPost(url);
   throw new Error(`Unsupported platform: ${platform}`);
 }

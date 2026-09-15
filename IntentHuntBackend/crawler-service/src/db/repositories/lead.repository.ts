@@ -130,10 +130,14 @@ export const leadRepository = {
   async updateUserMeta(
     id: string,
     patch: {
-      tags?:     string[];
-      viewed?:   boolean;       // true → set viewedAt = now
-      status?:   "new" | "viewed" | "replied" | "dismissed";
-      userNote?: string | null;
+      tags?:        string[];
+      viewed?:      boolean;       // true → set viewedAt = now
+      status?:      "new" | "viewed" | "replied" | "dismissed";
+      userNote?:    string | null;
+      // true → the user copied the suggested reply (sets repliedAt too).
+      // One-way signal — copying doesn't guarantee it was posted, but it's
+      // the only usage data this feature has; there's no "un-copy".
+      userReplied?: boolean;
     },
   ): Promise<void> {
     const data: Record<string, unknown> = {};
@@ -141,6 +145,10 @@ export const leadRepository = {
     if (patch.status   !== undefined) data.status   = patch.status;
     if (patch.userNote !== undefined) data.userNote = patch.userNote;
     if (patch.viewed === true)        data.viewedAt = new Date();
+    if (patch.userReplied === true) {
+      data.userReplied = true;
+      data.repliedAt   = new Date();
+    }
     await prisma.lead.update({ where: { id }, data });
   },
 

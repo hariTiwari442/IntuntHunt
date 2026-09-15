@@ -79,6 +79,21 @@ const PLATFORM_RULES: Record<Platform, string> = {
 - 2-3 sentences ideal, max 4.
 - For DMs: more personal, reference their specific role / company / post.
 - NEVER lead with "I work at X" — provide value first.`,
+
+  twitter: `TWITTER/X RULES:
+- Keep it SHORT — replies are read in a feed, not a thread. 1-2 sentences,
+  ideally under 200 characters.
+- Casual, conversational tone. No corporate voice, no hashtags.
+- React to the ACTUAL tweet first (agree, add a quick tip, or share a
+  one-line experience) before anything else.
+- Only mention the product if it fits naturally in that one or two
+  sentences — it's often better to just be helpful and skip the mention
+  than to force it in.
+  ✅ "Ran into this exact thing — ended up trying [product], sorted it in a few mins"
+  ❌ "You should check out [product], it does X, Y, Z!"
+- NEVER thread multiple tweets to fit a pitch in — if it doesn't fit in
+  one short reply, drop the mention and just be helpful.
+- No links unless directly asked — links visibly tank reply reach on X.`,
 };
 
 // ── Prompt construction ─────────────────────────────────────────────────────

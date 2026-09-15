@@ -144,10 +144,11 @@ export async function leadEngineRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const { leadId } = request.params;
       const body = request.body as {
-        tags?:     string[];
-        viewed?:   boolean;
-        status?:   "new" | "viewed" | "replied" | "dismissed";
-        userNote?: string | null;
+        tags?:        string[];
+        viewed?:      boolean;
+        status?:      "new" | "viewed" | "replied" | "dismissed";
+        userNote?:    string | null;
+        userReplied?: boolean;
       };
 
       // Ownership check via the lead → searchRun → userId chain

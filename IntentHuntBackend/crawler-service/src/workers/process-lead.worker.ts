@@ -2,8 +2,9 @@
  * Process-lead poller.
  * ─────────────────────
  * One item per pre-qualified lead. Runs Steps 4+5 (fetch full content via
- * ScrapeCreators — currently snippet-only, see note below — + deep-score via
- * GPT-4o-mini). Updates the lead row in DB (Realtime fires), then:
+ * ScrapeCreators, all three platforms — Reddit, LinkedIn, Twitter — then
+ * deep-score via GPT-4o-mini on the real post instead of just the Google
+ * snippet). Updates the lead row in DB (Realtime fires), then:
  *
  *   - Increments SearchRun.processedUrls
  *   - If processedUrls === totalUrls → marks SearchRun completed
@@ -27,14 +28,10 @@ import { prisma } from "../db/prisma.client.js";
 import { searchRunRepository } from "../db/repositories/search-run.repository.js";
 import { leadRepository } from "../db/repositories/lead.repository.js";
 import { startPoller, type Poller } from "./poller.js";
-// fetchPost is intentionally not imported — snippet-only mode (Step 4 skipped).
-// Re-import "../lib/scrapecreators.js" if you want to bring back full content fetch.
-// import { fetchPost } from "../lib/scrapecreators.js";
+import { fetchPost } from "../lib/scrapecreators.js";
 import { openai, MODELS } from "../lib/openai.js";
 import type { ProductIntelligence } from "../pipeline/types.js";
 import { z } from "zod";
-
-const REPLY_THRESHOLD = 60;
 
 interface ProcessLeadItem {
   leadId:      string;
@@ -72,21 +69,32 @@ function buildDeepScorePrompt(
 - Direct competitors: ${intelligence.alternatives.join(", ")}
 - Pain points: ${intelligence.pains.join("; ")}
 
-POST (snippet-only mode — title + Google snippet, no full post body):
+POST:
 - Platform: ${lead.platform} (${subRef})
 - Title: ${lead.title}
-- Snippet: ${(lead.content ?? "").slice(0, 1500)}
+- Post body: ${(lead.content ?? "").slice(0, 3000)}
+- Score: ${lead.postScore} | Comments: ${lead.commentCount}
+- Top comments:
+${comments}
 
-⚠️ You are scoring on title + Google snippet only — body and comments are
-not available. DO NOT penalise for short or missing content. The title +
-snippet are the buyer signal. If the snippet shows pain or intent, score
-accordingly even though it's brief.
+Note: not every platform's comments are available here (LinkedIn and
+Twitter fetches don't include replies) — an empty comments section
+doesn't mean anything by itself, don't penalise for it.
 
 ═══════════════════════════════════════════════════════════════════════
 COMPETITOR / BUILDER CHECK — be careful with false positives:
 ═══════════════════════════════════════════════════════════════════════
-isCompetitorThread = true ONLY IF the author is clearly SHOWCASING their
-own competing tool. Strong signals required (need 2+ of these):
+isCompetitorThread = true if EITHER of these is true:
+
+A) STRONG SIGNAL (sufficient on its own, no other cue needed):
+   The post OPENS like buyer pain ("I was struggling with...", "Tired of
+   manually...") and then PIVOTS into walking through a SPECIFIC product's
+   features/specs in detail (e.g. "it scans the card and pulls out name,
+   phone, email in 3 seconds, no typing"). That pain-hook-then-feature-walkthrough
+   shape is a marketing pattern, not a buyer asking for help — flag it even
+   with no explicit "I built this" and no link to the product.
+
+B) WEAKER SIGNALS (need 2+ of these together):
   • Explicit "I built", "I made", "my extension", "my tool", "I'm working on"
   • Links to their own Chrome Web Store / GitHub / website
   • "Show HN" or "feedback welcome" framing
@@ -97,6 +105,10 @@ DO NOT mark as competitor thread just because:
   • Title says "Best youtube looper" (likely a buyer comparing options)
   • Post mentions a competitor's name (buyers always mention competitors)
   • Title sounds tool-flavored without explicit "I built it"
+  • The author describes THEIR OWN pain/workflow in detail without naming
+    or pitching a specific product to solve it — that's just a real buyer
+    venting, not promotion. Signal A requires an actual product being
+    walked through, not just a detailed problem description.
 
 If isCompetitorThread = true → score 0-10.
 If unsure → leave isCompetitorThread = false and score normally.
@@ -244,36 +256,40 @@ async function process(item: ProcessLeadItem): Promise<void> {
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!lead) throw new Error(`Lead ${leadId} not found`);
 
-  // ── Step 4 (SKIPPED): snippet-only mode ──────────────────────────
-  // ScrapeCreators content fetch is disabled. We use the Google snippet
-  // (captured in Step 2) as the content for deep scoring. Lower fidelity
-  // than full post + comments, but free and works on any tier.
-  // To re-enable: replace the block below with the fetchPost(...) call.
+  // Step 4: fetch the real post (Reddit/LinkedIn/Twitter) instead of relying
+  // on the Google snippet. If this throws (dead link, API error), the whole
+  // process() call throws too — the poller's retry/backoff handles transient
+  // failures, and onItemFailed (below) falls back to the snippet after final
+  // failure, same safety net as before this was re-enabled.
   //
-  // This also doubles as the "claim" marker for this stage — once it's
-  // set, WHERE contentFetchedAt IS NULL no longer matches this row, even
-  // if every step after this one ends up failing on every retry.
-  const snippetContent = lead.googleSnippet ?? "";
+  // updateContent() below also doubles as the "claim" marker for this stage —
+  // once contentFetchedAt is set, WHERE contentFetchedAt IS NULL no longer
+  // matches this row, even if every step after this one ends up failing.
+  log.info("[process-lead] fetching full content");
+  const fetched = await fetchPost(lead.url, lead.platform);
 
   await leadRepository.updateContent(leadId, {
-    content:      snippetContent,
-    // No author / post score / comments without a fetch — frontend handles nulls
-    topComments:  [],
+    content:          fetched.content,
+    author:           fetched.author,
+    ...(fetched.authorProfileUrl ? { authorProfileUrl: fetched.authorProfileUrl } : {}),
+    postScore:        fetched.postScore,
+    commentCount:     fetched.commentCount,
+    postedAt:         fetched.postedAt,
+    topComments:      fetched.topComments,
   });
 
-  // ── Step 5: deep score (on snippet) ──────────────────────────────
-  log.info("[process-lead] deep scoring (snippet mode)");
+  log.info("[process-lead] deep scoring");
   const score = await deepScore(
     {
       url:          lead.url,
       platform:     lead.platform,
       subreddit:    lead.subreddit,
       title:        lead.title,
-      content:      snippetContent,
-      postScore:    0,
-      commentCount: 0,
-      topComments:  [],
-      author:       null,
+      content:      fetched.content,
+      postScore:    fetched.postScore,
+      commentCount: fetched.commentCount,
+      topComments:  fetched.topComments,
+      author:       fetched.author,
     },
     intelligence,
   );
