@@ -90,6 +90,12 @@ export async function gatewayRoutes(app: FastifyInstance): Promise<void> {
     // Also count leads created in the last 24h (the "new" badge on the UI).
     // The `leads` table is owned by crawler-service but shares the same DB,
     // so we read it via raw SQL rather than adding the model to this schema.
+    //
+    // Both counts are restricted to intent_score >= 80 ("Hot") to match the
+    // lead inbox's own default relevancy filter — otherwise this card and
+    // the inbox it links to would show two different numbers for what looks
+    // like the same thing. The frontend label was updated to "Hot Leads" to
+    // match, rather than silently redefining what "Total Leads" counted.
     const productIds = products.map(p => p.id);
     const counts = await prisma.$queryRaw<Array<{
       product_id: string;
@@ -102,6 +108,7 @@ export async function gatewayRoutes(app: FastifyInstance): Promise<void> {
         COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')::int AS new_24h
       FROM leads
       WHERE product_id = ANY(${productIds}::uuid[])
+        AND intent_score >= 80
       GROUP BY product_id
     `;
     const countMap = new Map(
