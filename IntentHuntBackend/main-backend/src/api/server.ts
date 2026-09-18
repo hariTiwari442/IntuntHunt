@@ -18,6 +18,7 @@ import { authRoutes } from './routes/auth.routes.js';
 import { profileRoutes } from './routes/profile.routes.js';
 import { gatewayRoutes } from './routes/gateway.routes.js';
 import { billingRoutes } from './routes/billing.routes.js';
+import { contactRoutes } from './routes/contact.routes.js';
 import { prisma } from '../db/prisma.client.js';
 
 async function buildServer() {
@@ -41,7 +42,8 @@ async function buildServer() {
   const allowedOrigins: (string | RegExp)[] = env.NODE_ENV === 'production'
     ? [
         env.APP_URL,                              // e.g. https://intenthunt.netlify.app
-        'https://leadpulse.app',                  // future custom domain (no-op if you don't have it)
+        'https://intenthunt.io',                  // production custom domain
+        'https://www.intenthunt.io',
         /\.netlify\.app$/,                        // any Netlify preview URL
       ]
     : true as unknown as (string | RegExp)[];     // dev: reflect any origin
@@ -74,6 +76,7 @@ async function buildServer() {
   await app.register(profileRoutes, { prefix: '/api/v1/profile' });
   await app.register(gatewayRoutes, { prefix: '/api/v1/gateway' });
   await app.register(billingRoutes, { prefix: '/api/v1/billing' });
+  await app.register(contactRoutes, { prefix: '/api/v1/contact' });
 
   return app;
 }

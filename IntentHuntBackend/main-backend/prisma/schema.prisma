@@ -5,8 +5,13 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Supabase's pooled connection (pgbouncer) can't run the schema-engine's
+  // prepared statements, so `prisma db push`/`migrate` need a direct
+  // connection. Only read by the schema engine at migration time — never by
+  // the running app — so it's safe to add without touching deployed env vars.
+  directUrl = env("DIRECT_URL")
 }
 
 // ── Profiles ─────────────────────────────────────────────
@@ -80,4 +85,20 @@ model Product {
 
   @@index([userId])
   @@map("products")
+}
+
+// ── Contact form submissions ─────────────────────────────────────
+// Public endpoint, no auth required — anonymous visitors and logged-in
+// users both land here. No outbound email is wired up (no transactional
+// email provider configured yet); check this table for new messages.
+model ContactMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String?
+  email     String
+  message   String
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("contact_messages")
+  @@index([createdAt])
 }
