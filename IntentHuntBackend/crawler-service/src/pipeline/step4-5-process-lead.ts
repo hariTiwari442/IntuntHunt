@@ -272,6 +272,14 @@ Return JSON:
 }`;
 }
 
+/**
+ * Score → band. These boundaries are the product's definition of a lead, so
+ * two other copies exist and cannot import this file (separate deployables):
+ *   - main-backend       src/config/leads.ts   (counts on GET /products)
+ *   - IntentHuntFrontEnd src/config/leads.ts   (what the UI shows and labels)
+ * Change one, change all three — a mismatch means a product card and the
+ * inbox it links to report different numbers for the same thing.
+ */
 function leadTypeFromScore(score: number): LeadType {
   if (score >= 80) return "hot";
   if (score >= 60) return "warm";

@@ -6,6 +6,7 @@ import { prisma } from '../../db/prisma.client.js';
 import { logger } from '../../utils/logger.js';
 import { NotFoundError, ForbiddenError } from '../../utils/errors.js';
 import { canCreateProduct, canRunSearch, planViewLimits } from '../../services/plan-enforcement.js';
+import { HOT_LEAD_SCORE } from '../../config/leads.js';
 
 /**
  * Gateway — proxies authenticated requests to crawler-service (the lead engine).
@@ -91,7 +92,7 @@ export async function gatewayRoutes(app: FastifyInstance): Promise<void> {
     // The `leads` table is owned by crawler-service but shares the same DB,
     // so we read it via raw SQL rather than adding the model to this schema.
     //
-    // Both counts are restricted to intent_score >= 80 ("Hot") to match the
+    // Both counts are restricted to the hot-lead threshold to match the
     // lead inbox's own default relevancy filter — otherwise this card and
     // the inbox it links to would show two different numbers for what looks
     // like the same thing. The frontend label was updated to "Hot Leads" to
@@ -108,7 +109,7 @@ export async function gatewayRoutes(app: FastifyInstance): Promise<void> {
         COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')::int AS new_24h
       FROM leads
       WHERE product_id = ANY(${productIds}::uuid[])
-        AND intent_score >= 80
+        AND intent_score >= ${HOT_LEAD_SCORE}
       GROUP BY product_id
     `;
     const countMap = new Map(
