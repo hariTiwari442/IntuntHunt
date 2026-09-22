@@ -44,32 +44,42 @@ interface ScRedditResponse {
   }>;
 }
 
+/**
+ * Real shape of GET /v1/linkedin/post?trim=true, confirmed against a live
+ * response on 2026-09-22:
+ *
+ *   success, credits_remaining, credits_charged, url, datePublished,
+ *   description, media, images, image, author, comments, likeCount,
+ *   commentCount
+ *
+ * The body is `description` at the root — there is no `post` wrapper and no
+ * `post.text`. The previously declared shape was a guess that matched none
+ * of it, so every field read back undefined and every LinkedIn lead was
+ * stored with empty content.
+ *
+ * The legacy `post.*` fields are kept as optional fallbacks: they cost
+ * nothing, and if the vendor ever returns that shape we degrade instead of
+ * silently emptying the content again.
+ */
 interface ScLinkedInResponse {
+  // Confirmed root shape.
+  description?:   string;
+  datePublished?: string;
+  likeCount?:     number;
+  commentCount?:  number;
+  comments?:      Array<{ text?: string }>;
+  author?:        { name?: string; url?: string; profile_url?: string };
+
+  // Legacy / alternative shapes, tried only if the above are absent.
   post?: {
-    text?:         string;
-    activity_id?:  string;
-    full_urn?:     string;
-    post_url?:     string;
-    author?: {
-      name?:        string;
-      profile_url?: string;
-    };
-    stats?: {
-      total_reactions?: number;
-      comments?:        number;
-    };
-    posted_at?: {
-      date?:      string;
-      timestamp?: number;
-    };
+    text?:      string;
+    author?:    { name?: string; profile_url?: string };
+    stats?:     { total_reactions?: number; comments?: number };
+    posted_at?: { date?: string; timestamp?: number };
   };
-  // Some endpoints flatten the post at root — handle both shapes
-  text?:        string;
-  activity_id?: string;
-  post_url?:    string;
-  author?:      { name?: string; profile_url?: string };
-  stats?:       { total_reactions?: number; comments?: number };
-  posted_at?:   { date?: string; timestamp?: number };
+  text?:      string;
+  stats?:     { total_reactions?: number; comments?: number };
+  posted_at?: { date?: string; timestamp?: number };
 }
 
 interface ScTwitterResponse {
@@ -202,30 +212,48 @@ async function fetchRedditPost(url: string): Promise<Omit<RawLead, "preScore" | 
 
 async function fetchLinkedInPost(url: string): Promise<Omit<RawLead, "preScore" | "googleSnippet" | "querySource">> {
   const data = await scGet<ScLinkedInResponse>("/v1/linkedin/post", { url, trim: "true" });
+  const legacy = data.post ?? {};
 
-  // The response may have the post at root or nested under `post`. Try both.
-  const post = data.post ?? data;
+  // `description` first — that's where the body actually is.
+  const text =
+    (typeof data.description === "string" && data.description) ||
+    (typeof legacy.text === "string" && legacy.text) ||
+    (typeof data.text === "string" && data.text) ||
+    "";
 
-  const text = typeof post.text === "string" ? post.text : "";
-  const author = post.author ?? null;
+  // Widened explicitly: the root author carries `url`, the legacy one
+  // `profile_url`, and the union of the two narrows to neither.
+  const author: { name?: string; url?: string; profile_url?: string } | null =
+    data.author ?? legacy.author ?? null;
+  const profileUrl = author?.profile_url ?? author?.url ?? null;
 
   let postedAt: Date | null = null;
-  if (post.posted_at?.date) {
-    const d = new Date(post.posted_at.date);
+  const rawDate = data.datePublished ?? legacy.posted_at?.date ?? data.posted_at?.date;
+  if (rawDate) {
+    const d = new Date(rawDate);
     if (!isNaN(d.getTime())) postedAt = d;
   }
 
+  // Comments DO come back, contrary to the old comment here claiming they
+  // don't — they were simply never read.
+  const topComments = (data.comments ?? [])
+    .map((c) => (typeof c?.text === "string" ? c.text.trim() : ""))
+    .filter(Boolean)
+    .slice(0, 5);
+
   return {
     url,
-    platform:                              "linkedin",
-    title:                                 text.slice(0, 200) || "(no title)",
-    content:                               text,
-    author:                                author?.name ?? null,
-    ...(author?.profile_url ? { authorProfileUrl: author.profile_url } : {}),
-    postScore:                             post.stats?.total_reactions ?? 0,
-    commentCount:                          post.stats?.comments ?? 0,
+    platform:     "linkedin",
+    // LinkedIn posts have no title, so the opening line stands in for one —
+    // trimmed at a word boundary rather than mid-word.
+    title:        text.slice(0, 200).replace(/\s+\S*$/, "") || "(no title)",
+    content:      text,
+    author:       author?.name ?? null,
+    ...(profileUrl ? { authorProfileUrl: profileUrl } : {}),
+    postScore:    data.likeCount ?? legacy.stats?.total_reactions ?? data.stats?.total_reactions ?? 0,
+    commentCount: data.commentCount ?? legacy.stats?.comments ?? data.stats?.comments ?? 0,
     postedAt,
-    topComments:                           [],   // LinkedIn endpoint doesn't return comments in basic response
+    topComments,
   };
 }
 
