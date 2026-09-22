@@ -14,6 +14,7 @@ import { prisma } from "../prisma.client.js";
 import type {
   LeadType,
   Platform,
+  Prisma,
   ReplyOpportunity,
 } from "@prisma/client";
 
@@ -155,6 +156,60 @@ export const leadRepository = {
   /** Permanently remove a lead the user doesn't want to see anymore. */
   async delete(id: string): Promise<void> {
     await prisma.lead.delete({ where: { id } });
+  },
+
+  /**
+   * Atomically claim up to `limit` leads matching `where` for a poller queue.
+   * Two-phase: SELECT candidates, then per-row conditional UPDATE (guarded on
+   * claimedAt still being null/stale) so a concurrent poller instance racing
+   * on the same rows can only win each one once. Mirrors the pattern
+   * search-run.repository already uses for claiming SearchRuns.
+   */
+  async claimForPoller(
+    where: Prisma.LeadWhereInput,
+    limit: number,
+    staleMs: number,
+  ): Promise<string[]> {
+    const staleBefore = new Date(Date.now() - staleMs);
+    const candidates = await prisma.lead.findMany({
+      where: {
+        ...where,
+        OR: [{ claimedAt: null }, { claimedAt: { lt: staleBefore } }],
+      },
+      orderBy: { createdAt: "asc" },
+      // Overfetch — some candidates will lose the per-row claim race below.
+      take: limit * 3,
+      select: { id: true },
+    });
+
+    const claimed: string[] = [];
+    for (const c of candidates) {
+      if (claimed.length >= limit) break;
+      const res = await prisma.lead.updateMany({
+        where: {
+          id: c.id,
+          ...where,
+          OR: [{ claimedAt: null }, { claimedAt: { lt: staleBefore } }],
+        },
+        data: { claimedAt: new Date() },
+      });
+      if (res.count === 1) claimed.push(c.id);
+    }
+    return claimed;
+  },
+
+  /**
+   * Flips processedAt from null -> now, exactly once. Returns true only for
+   * the caller that actually made the flip. Use this to guard any
+   * SearchRun-counter increment tied to "this lead is done" so poller
+   * retries or a concurrent instance can never double-count the same lead.
+   */
+  async markProcessedOnce(id: string): Promise<boolean> {
+    const res = await prisma.lead.updateMany({
+      where: { id, processedAt: null },
+      data:  { processedAt: new Date() },
+    });
+    return res.count === 1;
   },
 
   async listByProduct(productId: string, options: { limit?: number; minIntentScore?: number }) {

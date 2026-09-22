@@ -122,26 +122,36 @@ async function scGet<T>(path: string, queryParams: Record<string, string>): Prom
         return (await response.json()) as T;
       }
 
-      // Permanent quota/auth errors → mark dead, try next key
+      // Permanent quota/auth errors → mark this key dead so no future request
+      // (this one or any other) picks it again, then move on to the next key.
       if (response.status === 402 || response.status === 403) {
         markDead(pick.index, `HTTP ${response.status}`);
         lastError = new Error(`ScrapeCreators HTTP ${response.status} on key #${pick.index}`);
         continue;
       }
 
-      // Rate limit — try next key without killing this one (BullMQ retries handle longer waits)
+      // Rate limit — this key is probably still fine, just try the next one
+      // for this request instead of retiring it.
       if (response.status === 429) {
         logger.warn({ keyIndex: pick.index }, "[scrapecreators] 429, trying next key");
         lastError = new Error("ScrapeCreators rate-limited");
         continue;
       }
 
-      // Other errors — don't retry across keys
+      // Any other HTTP error (500, 404, malformed response, etc.) — could be
+      // this key, could be the URL, could be a blip on ScrapeCreators' side.
+      // Don't mark the key dead (we don't know it's the key's fault), but do
+      // try the next key before giving up on the whole request.
       const text = await response.text().catch(() => "");
-      throw new Error(`ScrapeCreators HTTP ${response.status}: ${text.slice(0, 200)}`);
+      lastError = new Error(`ScrapeCreators HTTP ${response.status}: ${text.slice(0, 200)}`);
+      logger.warn({ keyIndex: pick.index, status: response.status, path }, "[scrapecreators] request failed, trying next key");
+      continue;
     } catch (err) {
+      // Network-level failure (timeout, DNS, connection reset, etc.) — same
+      // deal, try the next key rather than failing the whole request on one
+      // bad connection attempt.
       if (lastError === null) lastError = err;
-      logger.warn({ err, keyIndex: pick.index, path }, "[scrapecreators] request errored");
+      logger.warn({ err, keyIndex: pick.index, path }, "[scrapecreators] request errored, trying next key");
     } finally {
       clearTimeout(timeout);
     }

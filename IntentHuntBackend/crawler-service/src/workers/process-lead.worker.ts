@@ -4,7 +4,10 @@
  * One item per pre-qualified lead. Runs Steps 4+5 (fetch full content via
  * ScrapeCreators, all three platforms — Reddit, LinkedIn, Twitter — then
  * deep-score via GPT-4o-mini on the real post instead of just the Google
- * snippet). Updates the lead row in DB (Realtime fires), then:
+ * snippet, delegating the actual scoring to deepScoreLead() in
+ * pipeline/step4-5-process-lead.ts — the single source of truth for that
+ * prompt, shared with the CLI test path). Updates the lead row in DB
+ * (Realtime fires), then:
  *
  *   - Increments SearchRun.processedUrls
  *   - If processedUrls === totalUrls → marks SearchRun completed
@@ -14,11 +17,12 @@
  * up automatically by the reply-gen poller on its own next tick, because
  * that's exactly the condition it watches for.
  *
- * "Queue" here is just `WHERE contentFetchedAt IS NULL` — every lead the
- * orchestrator inserts starts out that way, and this stage is the only
- * thing that ever sets it. Batches are fetched, fully processed, and
- * awaited before the next fetch — so within this one poller there's no
- * chance of the same lead being picked up twice.
+ * "Queue" here is `WHERE contentFetchedAt IS NULL`, claimed via
+ * Lead.claimedAt (see fetchPendingLeads) so a second poller instance can't
+ * grab the same row. process() itself is also re-entry-safe: a retried or
+ * re-claimed lead reuses whatever content/score is already on the row
+ * instead of re-fetching/re-scoring, and processedUrls is only ever
+ * incremented once per lead (leadRepository.markProcessedOnce).
  *
  * Concurrency: 3 (ScrapeCreators rate-friendly) — matches the old BullMQ setting.
  */
@@ -29,214 +33,13 @@ import { searchRunRepository } from "../db/repositories/search-run.repository.js
 import { leadRepository } from "../db/repositories/lead.repository.js";
 import { startPoller, type Poller } from "./poller.js";
 import { fetchPost } from "../lib/scrapecreators.js";
-import { openai, MODELS } from "../lib/openai.js";
-import type { ProductIntelligence } from "../pipeline/types.js";
-import { z } from "zod";
+import { deepScoreLead } from "../pipeline/step4-5-process-lead.js";
+import type { LeadType, ProductIntelligence } from "../pipeline/types.js";
 
 interface ProcessLeadItem {
   leadId:      string;
   searchRunId: string;
   productId:   string;
-}
-
-// ── Deep-score prompt (mirrors step4-5-process-lead.ts) ─────────────────────
-
-const DeepScoreSchema = z.object({
-  intentScore:        z.number().min(0).max(100),
-  leadType:           z.enum(["hot", "warm", "possible", "unlikely", "not_a_lead"]),
-  reasoning:          z.string().min(1),
-  replyOpportunity:   z.enum(["comment", "dm", "both", "none"]),
-  suggestedAngle:     z.string(),
-  isCompetitorThread: z.boolean().default(false),
-});
-
-function buildDeepScorePrompt(
-  lead: { url: string; platform: string; subreddit: string | null; title: string;
-          content: string; postScore: number; commentCount: number; topComments: string[];
-          author: string | null },
-  intelligence: ProductIntelligence,
-): string {
-  const subRef = lead.subreddit ? `r/${lead.subreddit}` : lead.platform;
-  const comments = lead.topComments.length > 0
-    ? lead.topComments.slice(0, 3).map((c, i) => `Comment ${i + 1}: ${c.slice(0, 300)}`).join("\n---\n")
-    : "(no comments)";
-
-  return `PRODUCT CONTEXT:
-- Name: ${intelligence.productName}
-- Category: ${intelligence.category}
-- Problem solved: ${intelligence.problem}
-- Audience: ${intelligence.audience}
-- Direct competitors: ${intelligence.alternatives.join(", ")}
-- Pain points: ${intelligence.pains.join("; ")}
-
-POST:
-- Platform: ${lead.platform} (${subRef})
-- Title: ${lead.title}
-- Post body: ${(lead.content ?? "").slice(0, 3000)}
-- Score: ${lead.postScore} | Comments: ${lead.commentCount}
-- Top comments:
-${comments}
-
-Note: not every platform's comments are available here (LinkedIn and
-Twitter fetches don't include replies) — an empty comments section
-doesn't mean anything by itself, don't penalise for it.
-
-═══════════════════════════════════════════════════════════════════════
-COMPETITOR / BUILDER CHECK — be careful with false positives:
-═══════════════════════════════════════════════════════════════════════
-isCompetitorThread = true if EITHER of these is true:
-
-A) STRONG SIGNAL (sufficient on its own, no other cue needed):
-   The post OPENS like buyer pain ("I was struggling with...", "Tired of
-   manually...") and then PIVOTS into walking through a SPECIFIC product's
-   features/specs in detail (e.g. "it scans the card and pulls out name,
-   phone, email in 3 seconds, no typing"). That pain-hook-then-feature-walkthrough
-   shape is a marketing pattern, not a buyer asking for help — flag it even
-   with no explicit "I built this" and no link to the product.
-
-B) WEAKER SIGNALS (need 2+ of these together):
-  • Explicit "I built", "I made", "my extension", "my tool", "I'm working on"
-  • Links to their own Chrome Web Store / GitHub / website
-  • "Show HN" or "feedback welcome" framing
-  • Active promotional posture
-
-DO NOT mark as competitor thread just because:
-  • Title says "Free youtube looper" (could be a user ASKING about free tools)
-  • Title says "Best youtube looper" (likely a buyer comparing options)
-  • Post mentions a competitor's name (buyers always mention competitors)
-  • Title sounds tool-flavored without explicit "I built it"
-  • The author describes THEIR OWN pain/workflow in detail without naming
-    or pitching a specific product to solve it — that's just a real buyer
-    venting, not promotion. Signal A requires an actual product being
-    walked through, not just a detailed problem description.
-
-If isCompetitorThread = true → score 0-10.
-If unsure → leave isCompetitorThread = false and score normally.
-
-═══════════════════════════════════════════════════════════════════════
-PLATFORM COMPATIBILITY:
-═══════════════════════════════════════════════════════════════════════
-If author explicitly asks for an incompatible platform (e.g. Firefox-only when
-your product is Chrome-only), subtract 20 from final score.
-
-═══════════════════════════════════════════════════════════════════════
-CATEGORY MATCH CHECK — BEFORE scoring HOT (80+):
-═══════════════════════════════════════════════════════════════════════
-HOT (80+) is reserved for posts that need EXACTLY this product's category.
-
-If the user is asking for a DIFFERENT category of tool (even if related):
-  → cap at WARM (60-79) maximum
-  → never HOT
-
-Example for a "business card scanner" product:
-  ✅ "How do I scan business cards fast at trade shows?" → HOT 85 (exact match)
-  ✅ "Tool to extract contacts from business card photos?" → HOT 80 (exact match)
-  ❌ "Looking for a CRM with automation" → cap at WARM 65 (adjacent, wrong category)
-  ❌ "Best follow-up automation tool?" → cap at WARM 60 (adjacent, wrong category)
-
-Example for a "YouTube loop extension":
-  ✅ "How do I loop a section of a YouTube video?" → HOT (exact match)
-  ❌ "Best video editor for YouTube?" → cap at WARM (adjacent, different category)
-
-Rule: if the user could solve their stated problem with a completely DIFFERENT
-type of tool than yours, it is NOT a HOT lead — regardless of how explicit
-their ask is. They are not in market for YOUR product.
-
-═══════════════════════════════════════════════════════════════════════
-SCORING — LEAN GENEROUS, NOT CONSERVATIVE (within category):
-═══════════════════════════════════════════════════════════════════════
-
-DEFAULT RULE: when the post matches the product's exact category AND
-expresses pain or asks for a tool, ERR ON THE HIGH SIDE. Most buyers
-don't type "looking for a tool" — they describe their pain. That IS
-the buying signal — IF the category matches.
-
-80-100 HOT — author is actively asking for a tool in THIS product's exact
-              category, mentions competitor name, or describes urgent
-              switching intent.
-              e.g. "anyone know a [category]?", "[competitor] alternative?",
-              "[competitor] just broke / raised prices"
-
-60-79  WARM — author describes the EXACT pain this product solves, OR has
-              clear frustration with a competitor / status-quo workflow.
-              DEFAULT to WARM (60-79) when:
-                • Post is in the right category AND user expresses frustration
-                  → e.g. "HELP. I can't find the repeat button" for a YouTube
-                    loop product = WARM (~70), not POSSIBLE
-                • User explicitly compares competitors
-                • User says "tired of X" / "X is too expensive" / "X is broken"
-              DO NOT downgrade to POSSIBLE/UNLIKELY just because the user
-              didn't literally type "what tool should I use?"
-
-40-59  POSSIBLE — related topic, no pain expressed, intent genuinely unclear.
-                  Use this ONLY when the post is in the category but the
-                  author seems to be discussing rather than struggling.
-
-20-39  UNLIKELY — tangentially related but user is clearly not in buying
-                  mode (e.g. casual mention, off-topic main thread).
-
- 0-19  NOT_A_LEAD — completely off-topic, spam, author already solved it,
-                    different domain entirely, or confirmed competitor thread.
-
-═══════════════════════════════════════════════════════════════════════
-ANTI-BIAS RULES:
-═══════════════════════════════════════════════════════════════════════
-❌ Don't add "but intent is unclear" caveats to drag scores down.
-   If the pain is described, the intent IS clear enough — score it warm/hot.
-❌ Don't be conservative when the post matches multiple product pains.
-❌ Don't downgrade for short post bodies — many real buyer posts are short.
-
-═══════════════════════════════════════════════════════════════════════
-REPLY OPPORTUNITY — prefer "comment":
-═══════════════════════════════════════════════════════════════════════
-- "comment" (DEFAULT) — most active threads
-- "dm" — LinkedIn specifically, or sensitive personal Reddit posts
-- "none" — locked thread, post is from product team, or 5+ tool recs already
-
-═══════════════════════════════════════════════════════════════════════
-Return JSON:
-{
-  "intentScore":        <0-100>,
-  "leadType":           "hot" | "warm" | "possible" | "unlikely" | "not_a_lead",
-  "reasoning":          "<one sentence — state WHY this score, in the buyer's voice if possible>",
-  "replyOpportunity":   "comment" | "dm" | "both" | "none",
-  "suggestedAngle":     "<1-2 sentences: how to naturally bring up the product>",
-  "isCompetitorThread": <true ONLY if author is explicitly showcasing own tool>
-}`;
-}
-
-async function deepScore(
-  lead: Parameters<typeof buildDeepScorePrompt>[0],
-  intelligence: ProductIntelligence,
-): Promise<z.infer<typeof DeepScoreSchema>> {
-  let lastErr: unknown = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const response = await openai.chat.completions.create({
-        model:           MODELS.DEEP_SCORE,
-        response_format: { type: "json_object" },
-        temperature:     0.3,
-        messages: [
-          { role: "system", content: "You are a lead qualification expert. Return JSON only." },
-          { role: "user",   content: buildDeepScorePrompt(lead, intelligence) },
-        ],
-      });
-      const raw = response.choices[0]?.message?.content ?? "{}";
-      return DeepScoreSchema.parse(JSON.parse(raw));
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  throw new Error(`Deep score failed: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}`);
-}
-
-function clampLeadType(score: number, isCompetitorThread: boolean) {
-  if (isCompetitorThread) return "not_a_lead" as const;
-  if (score >= 80) return "hot"        as const;
-  if (score >= 60) return "warm"       as const;
-  if (score >= 40) return "possible"   as const;
-  if (score >= 20) return "unlikely"   as const;
-  return                "not_a_lead"   as const;
 }
 
 // ── Main process function ───────────────────────────────────────────────────
@@ -262,53 +65,83 @@ async function process(item: ProcessLeadItem): Promise<void> {
   // failures, and onItemFailed (below) falls back to the snippet after final
   // failure, same safety net as before this was re-enabled.
   //
-  // updateContent() below also doubles as the "claim" marker for this stage —
-  // once contentFetchedAt is set, WHERE contentFetchedAt IS NULL no longer
-  // matches this row, even if every step after this one ends up failing.
-  log.info("[process-lead] fetching full content");
-  const fetched = await fetchPost(lead.url, lead.platform);
+  // Re-entry guard: a poller retry (or a claim reused after a stale-claim
+  // reclaim) can call process() again for a lead that already got through
+  // this step on a prior attempt. Re-fetching would burn another
+  // ScrapeCreators credit for no reason, so reuse what's already on the row
+  // instead of calling fetchPost again.
+  let fetched: {
+    content:           string;
+    author:            string | null;
+    authorProfileUrl?: string;
+    postScore:         number;
+    commentCount:      number;
+    postedAt:          Date | null;
+    topComments:       string[];
+  };
+  if (lead.contentFetchedAt) {
+    fetched = {
+      content:          lead.content ?? "",
+      author:           lead.author,
+      ...(lead.authorProfileUrl ? { authorProfileUrl: lead.authorProfileUrl } : {}),
+      postScore:        lead.postScore,
+      commentCount:     lead.commentCount,
+      postedAt:         lead.postedAt,
+      topComments:      Array.isArray(lead.topComments) ? (lead.topComments as string[]) : [],
+    };
+  } else {
+    log.info("[process-lead] fetching full content");
+    fetched = await fetchPost(lead.url, lead.platform);
 
-  await leadRepository.updateContent(leadId, {
-    content:          fetched.content,
-    author:           fetched.author,
-    ...(fetched.authorProfileUrl ? { authorProfileUrl: fetched.authorProfileUrl } : {}),
-    postScore:        fetched.postScore,
-    commentCount:     fetched.commentCount,
-    postedAt:         fetched.postedAt,
-    topComments:      fetched.topComments,
-  });
+    await leadRepository.updateContent(leadId, {
+      content:          fetched.content,
+      author:           fetched.author,
+      ...(fetched.authorProfileUrl ? { authorProfileUrl: fetched.authorProfileUrl } : {}),
+      postScore:        fetched.postScore,
+      commentCount:     fetched.commentCount,
+      postedAt:         fetched.postedAt,
+      topComments:      fetched.topComments,
+    });
+  }
 
-  log.info("[process-lead] deep scoring");
-  const score = await deepScore(
-    {
-      url:          lead.url,
-      platform:     lead.platform,
-      subreddit:    lead.subreddit,
-      title:        lead.title,
-      content:      fetched.content,
-      postScore:    fetched.postScore,
-      commentCount: fetched.commentCount,
-      topComments:  fetched.topComments,
-      author:       fetched.author,
-    },
-    intelligence,
-  );
+  // Same re-entry guard for Step 5 — don't spend a second GPT call re-scoring
+  // a lead a prior attempt already scored.
+  let finalScore: number;
+  let finalLeadType: LeadType;
+  if (lead.deepScoredAt) {
+    finalScore    = lead.intentScore;
+    finalLeadType = lead.leadType;
+  } else {
+    log.info("[process-lead] deep scoring");
+    const score = await deepScoreLead(
+      {
+        url:          lead.url,
+        platform:     lead.platform,
+        subreddit:    lead.subreddit,
+        title:        lead.title,
+        content:      fetched.content,
+        postScore:    fetched.postScore,
+        commentCount: fetched.commentCount,
+        topComments:  fetched.topComments,
+        author:       fetched.author,
+      },
+      intelligence,
+    );
 
-  // Apply builder/competitor override
-  const isCompetitor = score.isCompetitorThread;
-  const finalScore = isCompetitor ? Math.min(score.intentScore, 10) : Math.round(score.intentScore);
-  const finalLeadType = clampLeadType(finalScore, isCompetitor);
+    finalScore    = score.intentScore;
+    finalLeadType = score.leadType;
 
-  await leadRepository.updateScore(leadId, {
-    intentScore:        finalScore,
-    leadType:           finalLeadType,
-    reasoning:          score.reasoning,
-    replyOpportunity:   score.replyOpportunity,
-    suggestedAngle:     score.suggestedAngle,
-    isCompetitorThread: isCompetitor,
-  });
+    await leadRepository.updateScore(leadId, {
+      intentScore:        score.intentScore,
+      leadType:           score.leadType,
+      reasoning:          score.reasoning,
+      replyOpportunity:   score.replyOpportunity,
+      suggestedAngle:     score.suggestedAngle,
+      isCompetitorThread: score.isCompetitorThread,
+    });
 
-  log.info({ score: finalScore, leadType: finalLeadType }, "[process-lead] scored");
+    log.info({ score: finalScore, leadType: finalLeadType }, "[process-lead] scored");
+  }
 
   // No explicit reply-gen enqueue — the reply-gen poller's own WHERE clause
   // (deepScoredAt set, replyGeneratedAt null, intentScore >= 60, not a
@@ -317,29 +150,50 @@ async function process(item: ProcessLeadItem): Promise<void> {
   // next tick regardless of whether we do anything else here.
 
   // ── Update SearchRun counters + completion check ─────────────────
-  const { processedUrls, totalUrls } = await searchRunRepository.incrementProcessed(searchRunId);
+  // markProcessedOnce guards this whole block so a poller retry or a
+  // concurrent instance that reaches this same lead a second time can never
+  // bump processedUrls twice — without it, a transient failure on the lines
+  // below (which used to run straight after an un-guarded increment) would
+  // make the poller re-run this entire function from the top on retry,
+  // double-fetching + double-scoring + double-counting the same lead.
+  const countedNow = await leadRepository.markProcessedOnce(leadId);
+  if (countedNow) {
+    const { processedUrls, totalUrls } = await searchRunRepository.incrementProcessed(searchRunId);
 
-  if (finalScore >= 40) {
-    await prisma.searchRun.update({
-      where: { id: searchRunId },
-      data:  { leadsScored: { increment: 1 } },
-    });
-  }
+    if (finalScore >= 40) {
+      await prisma.searchRun.update({
+        where: { id: searchRunId },
+        data:  { leadsScored: { increment: 1 } },
+      });
+    }
 
-  if (totalUrls != null && processedUrls >= totalUrls) {
-    log.info({ processedUrls, totalUrls }, "[process-lead] all leads processed → marking SearchRun complete");
-    await searchRunRepository.markCompleted(searchRunId);
+    if (totalUrls != null && processedUrls >= totalUrls) {
+      log.info({ processedUrls, totalUrls }, "[process-lead] all leads processed → marking SearchRun complete");
+      await searchRunRepository.markCompleted(searchRunId);
+    }
+  } else {
+    log.info("[process-lead] already counted toward SearchRun on a prior attempt — skipping counters");
   }
 }
 
 // ── Claiming ─────────────────────────────────────────────────────────────────
 
+// If a claimed lead's worker dies mid-attempt (crash, redeploy) before
+// setting contentFetchedAt, the claim goes stale after this window and
+// another poller tick is free to pick the row back up.
+const STALE_CLAIM_MS = 10 * 60 * 1000;
+
 async function fetchPendingLeads(limit: number): Promise<ProcessLeadItem[]> {
+  const claimedIds = await leadRepository.claimForPoller(
+    { contentFetchedAt: null },
+    limit,
+    STALE_CLAIM_MS,
+  );
+  if (claimedIds.length === 0) return [];
+
   const rows = await prisma.lead.findMany({
-    where:   { contentFetchedAt: null },
-    orderBy: { createdAt: "asc" },
-    take:    limit,
-    select:  { id: true, searchRunId: true, productId: true },
+    where:  { id: { in: claimedIds } },
+    select: { id: true, searchRunId: true, productId: true },
   });
   return rows.map((r) => ({ leadId: r.id, searchRunId: r.searchRunId, productId: r.productId }));
 }
@@ -373,9 +227,15 @@ export function startProcessLeadWorker(): Poller {
             topComments: [],
           });
         }
-        const { processedUrls, totalUrls } = await searchRunRepository.incrementProcessed(item.searchRunId);
-        if (totalUrls != null && processedUrls >= totalUrls) {
-          await searchRunRepository.markCompleted(item.searchRunId);
+        // Same exactly-once guard as the success path — a lead that already
+        // got counted by an earlier attempt (which then failed on a later
+        // step) must not be counted again here.
+        const countedNow = await leadRepository.markProcessedOnce(item.leadId);
+        if (countedNow) {
+          const { processedUrls, totalUrls } = await searchRunRepository.incrementProcessed(item.searchRunId);
+          if (totalUrls != null && processedUrls >= totalUrls) {
+            await searchRunRepository.markCompleted(item.searchRunId);
+          }
         }
       } catch (e) {
         logger.error({ e }, "[process-lead] failed to clean up after final failure");

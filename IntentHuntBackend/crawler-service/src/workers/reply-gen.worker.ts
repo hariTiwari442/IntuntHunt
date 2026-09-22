@@ -20,6 +20,7 @@ import { searchRunRepository } from "../db/repositories/search-run.repository.js
 import { leadRepository } from "../db/repositories/lead.repository.js";
 import { startPoller, type Poller } from "./poller.js";
 import { generateOneReply } from "../pipeline/step6-reply-gen.js";
+import type { Prisma } from "@prisma/client";
 import type { ProductIntelligence, ScoredLead } from "../pipeline/types.js";
 
 const REPLY_THRESHOLD = 60;
@@ -91,20 +92,26 @@ async function process(item: ReplyGenItem): Promise<void> {
 
 // ── Claiming ─────────────────────────────────────────────────────────────────
 
+// Same reasoning as process-lead's STALE_CLAIM_MS: reclaim a row if the
+// worker that claimed it died before finishing (crash, redeploy).
+const STALE_CLAIM_MS = 10 * 60 * 1000;
+
+const PENDING_WHERE: Prisma.LeadWhereInput = {
+  deepScoredAt:       { not: null },
+  replyGeneratedAt:   null,
+  intentScore:        { gte: REPLY_THRESHOLD },
+  isCompetitorThread: false,
+  replyOpportunity:   { not: "none" },
+};
+
 async function fetchPendingReplyGen(limit: number): Promise<ReplyGenItem[]> {
-  const rows = await prisma.lead.findMany({
-    where: {
-      deepScoredAt:       { not: null },
-      replyGeneratedAt:   null,
-      intentScore:        { gte: REPLY_THRESHOLD },
-      isCompetitorThread: false,
-      replyOpportunity:   { not: "none" },
-    },
-    orderBy: { deepScoredAt: "asc" },
-    take:    limit,
-    select:  { id: true },
-  });
-  return rows.map((r) => ({ leadId: r.id }));
+  // Claiming reuses Lead.claimedAt — a lead is only ever a candidate for one
+  // of the process-lead / reply-gen queues at a time (this one only matches
+  // rows already past deep-scoring), so the two queues can't collide on it.
+  // Without this, two concurrent poller instances (or an overlapping deploy)
+  // could both generate + charge for a reply on the same lead.
+  const claimedIds = await leadRepository.claimForPoller(PENDING_WHERE, limit, STALE_CLAIM_MS);
+  return claimedIds.map((id) => ({ leadId: id }));
 }
 
 // ── Poller boot ─────────────────────────────────────────────────────────────
