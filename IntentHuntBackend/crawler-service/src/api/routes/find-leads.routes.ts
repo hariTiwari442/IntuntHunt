@@ -12,6 +12,7 @@
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import type { Platform } from "@prisma/client";
 import { prisma } from "../../db/prisma.client.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { searchRunRepository } from "../../db/repositories/search-run.repository.js";
@@ -29,6 +30,12 @@ const ListLeadsQuerySchema = z.object({
   minIntentScore: z.coerce.number().min(0).max(100).optional(),
   leadType:       z.enum(["hot", "warm", "possible", "unlikely", "not_a_lead"]).optional(),
   limit:          z.coerce.number().int().min(1).max(500).default(100),
+  // Plan gating, set by main-backend's gateway — never by the client.
+  // Comma-separated platforms the caller's plan may SEE (all plans search
+  // all platforms; free plans just don't get shown the rest).
+  visibleSources: z.string().optional(),
+  // Hard cap on how many leads the caller's plan may see. Absent = no cap.
+  visibleLeads:   z.coerce.number().int().min(0).optional(),
 });
 
 // ── Routes ──────────────────────────────────────────────────────────────────
@@ -225,19 +232,59 @@ export async function leadEngineRoutes(app: FastifyInstance): Promise<void> {
     // Fetch the page + the all-time count (under same where clause) in
     // parallel. The frontend uses `total` to render "X of Y" so users
     // know when the page is truncated by limit.
-    const [leads, total] = await Promise.all([
+    // What this plan is allowed to see. Leads outside it still exist and stay
+    // scored — they're withheld, and counted so the UI can say exactly what an
+    // upgrade would reveal rather than vaguely implying there's more.
+    const allowedPlatforms = query.visibleSources
+      ? query.visibleSources.split(",").map((s) => s.trim()).filter(Boolean)
+      : null;
+
+    const visibleWhere = allowedPlatforms
+      ? { ...where, platform: { in: allowedPlatforms as Platform[] } }
+      : where;
+
+    const effectiveLimit =
+      query.visibleLeads != null ? Math.min(query.limit, query.visibleLeads) : query.limit;
+
+    const [leads, total, visibleTotal, lockedByPlatform] = await Promise.all([
       prisma.lead.findMany({
-        where,
+        where: visibleWhere,
         orderBy: [
           { intentScore: "desc" },
           { preScore:    "desc" },
         ],
-        take: query.limit,
+        take: effectiveLimit,
       }),
       prisma.lead.count({ where }),
+      prisma.lead.count({ where: visibleWhere }),
+      // Count what's hidden, grouped by platform, so the upgrade prompt can
+      // name the sources rather than just a total.
+      prisma.lead.groupBy({
+        by:    ["platform"],
+        where,
+        _count: { _all: true },
+      }),
     ]);
 
+    const lockedSources = allowedPlatforms
+      ? lockedByPlatform
+          .filter((g) => !allowedPlatforms.includes(g.platform))
+          .map((g) => ({ platform: g.platform, count: g._count._all }))
+          .filter((g) => g.count > 0)
+      : [];
+
+    // Withheld = platforms this plan can't see, plus anything cut by the cap.
+    const lockedCount = Math.max(0, total - Math.min(visibleTotal, effectiveLimit));
+
     reply.send({
+      // Plan-gating metadata: what's being withheld and why. Null limits mean
+      // an unrestricted plan, so the UI shows no upgrade prompt at all.
+      gating: {
+        lockedCount,
+        lockedSources,
+        visibleLeads:   query.visibleLeads ?? null,
+        visibleSources: allowedPlatforms,
+      },
       leads: leads.map((l) => ({
         id:                  l.id,
         productId:           l.productId,

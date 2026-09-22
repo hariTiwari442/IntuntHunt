@@ -5,7 +5,7 @@ import { authMiddleware } from '../middleware/auth.middleware.js';
 import { prisma } from '../../db/prisma.client.js';
 import { logger } from '../../utils/logger.js';
 import { NotFoundError, ForbiddenError } from '../../utils/errors.js';
-import { canCreateProduct } from '../../services/plan-enforcement.js';
+import { canCreateProduct, canRunSearch, planViewLimits } from '../../services/plan-enforcement.js';
 
 /**
  * Gateway — proxies authenticated requests to crawler-service (the lead engine).
@@ -198,8 +198,31 @@ export async function gatewayRoutes(app: FastifyInstance): Promise<void> {
   // ── Lead Engine ─────────────────────────────────────────────────────────
 
   // POST /products/:productId/find-leads
+  // POST /gateway/trial/:scanId/claim — take ownership of a pre-signup scan.
+  // Lives here rather than in trial.routes.ts because, unlike the rest of the
+  // trial flow, this one genuinely needs an authenticated user.
+  app.post('/trial/:scanId/claim', async (request, reply) => {
+    const { scanId } = request.params as { scanId: string };
+    return proxy(request, reply, env.CRAWLER_SERVICE_URL, `/api/v1/trial/${encodeURIComponent(scanId)}/claim`);
+  });
+
   app.post('/products/:productId/find-leads', async (request, reply) => {
     const { productId } = request.params as { productId: string };
+
+    // The one endpoint that actually spends money — Serper queries,
+    // ScrapeCreators credits and OpenAI calls, per run. The limit existed in
+    // the plan table from the beginning but was never checked here, so any
+    // account could scan without bound.
+    const check = await canRunSearch(request.userId);
+    if (!check.allowed) {
+      return reply.status(402).send({
+        statusCode: 402,
+        error: 'PAYMENT_REQUIRED',
+        message: check.reason,
+        ...(check.limit !== undefined ? { limit: check.limit, current: check.current, plan: check.plan } : {}),
+      });
+    }
+
     return proxy(request, reply, env.CRAWLER_SERVICE_URL, `/api/v1/find-leads/${productId}`);
   });
 
@@ -230,10 +253,20 @@ export async function gatewayRoutes(app: FastifyInstance): Promise<void> {
   // GET /products/:productId/leads
   app.get('/products/:productId/leads', async (request, reply) => {
     const { productId } = request.params as { productId: string };
+
+    // Plan gating travels with the request rather than being applied in the
+    // UI. Every plan searches all three platforms, but a free plan only gets
+    // to SEE Reddit — the rest are found, scored and withheld, with a count
+    // so the upgrade prompt can be specific about what's waiting.
+    const limits = await planViewLimits(request.userId);
+
     const queryString = new URLSearchParams({
       productId,
       ...(request.query as Record<string, string>),
+      visibleSources: limits.visibleSources.join(','),
+      ...(limits.visibleLeads !== null ? { visibleLeads: String(limits.visibleLeads) } : {}),
     }).toString();
+
     return proxy(request, reply, env.CRAWLER_SERVICE_URL, `/api/v1/leads?${queryString}`);
   });
 }
