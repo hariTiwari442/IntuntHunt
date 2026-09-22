@@ -226,6 +226,15 @@ Push to `main` in `IntentHuntFrontEnd`; Netlify builds automatically.
 
 ## Known open issues
 
+- **Form submissions notify nobody.** The contact form and the API-access
+  waitlist both write to `contact_messages` and stop there — you have to open
+  the table to see them. There is no transactional email capability in this
+  codebase at all: the only mail that gets sent is Supabase's own auth
+  links (signup, password reset), which can't send arbitrary messages.
+  Wiring notifications needs a provider (Resend is the least work) plus its
+  API key, and the destination address. Hari is supplying an official
+  IntentHunt address for this.
+
 - **Twitter fetcher sometimes stores empty content.** At least one lead has
   `contentFetchedAt` set with `content` length 0 (a `?lang=tl` URL). It scored
   correctly off its title by luck. Unfixed.
