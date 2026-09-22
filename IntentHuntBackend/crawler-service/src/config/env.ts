@@ -31,6 +31,12 @@ const EnvSchema = z.object({
   // step2 throws a clear error if it's missing when called.
   SERPER_API_KEY: z.string().optional(),
   SERPER_BASE_URL: z.string().url().optional(),
+  // Local UI testing only. When "true", a trial scan is completed instantly
+  // with fixture leads instead of being queued for the pipeline. Set ONLY in
+  // .env.mock — it must never be present in a deployed environment, and the
+  // queue is shared with production, so this is also what keeps a local test
+  // from being picked up and charged for by the production worker.
+  MOCK_PIPELINE: z.enum(['true', 'false']).optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

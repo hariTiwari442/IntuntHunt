@@ -46,6 +46,14 @@ async function proxyPublic(
   }
 }
 
+// These ceilings exist to stop a stranger burning credits on the public
+// homepage. Locally there are no credits at stake (see MOCK_PIPELINE) and the
+// production limits make it impossible to click through the flow more than
+// three times, so they're relaxed outside production.
+const isProd = env.NODE_ENV === 'production';
+const ANALYZE_LIMIT = isProd ? 10 : 1000;
+const SCAN_LIMIT    = isProd ? 3  : 1000;
+
 export async function trialRoutes(app: FastifyInstance): Promise<void> {
   // POST /trial/analyze — extract a product URL and derive its description.
   //
@@ -55,8 +63,22 @@ export async function trialRoutes(app: FastifyInstance): Promise<void> {
   // a stream of *distinct* URLs.
   app.post(
     '/analyze',
-    { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } },
+    { config: { rateLimit: { max: ANALYZE_LIMIT, timeWindow: '1 hour' } } },
     async (request, reply) => proxyPublic(request, reply, '/api/v1/trial/analyze'),
+  );
+
+  // POST /trial/:scanId/scan — the "find conversations" click.
+  //
+  // This is the expensive one: keyword engine + a full lead search. Held to a
+  // tighter ceiling than /analyze because each call spends Serper,
+  // ScrapeCreators and OpenAI credits.
+  app.post(
+    '/:scanId/scan',
+    { config: { rateLimit: { max: SCAN_LIMIT, timeWindow: '1 hour' } } },
+    async (request, reply) => {
+      const { scanId } = request.params as { scanId: string };
+      return proxyPublic(request, reply, `/api/v1/trial/${encodeURIComponent(scanId)}/scan`);
+    },
   );
 
   // GET /trial/:scanId — re-read a scan (page refresh, returning visitor).

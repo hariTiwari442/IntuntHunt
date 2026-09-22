@@ -43,6 +43,13 @@ const BROWSER_UA =
 export interface WebsiteContent {
   url:      string;
   title:    string;
+  /**
+   * The page's own one-line pitch (meta/og description), or the best
+   * substitute we can find. This is what gets shown back to the visitor to
+   * confirm or correct — deliberately separate from `text`, which is the
+   * full page dump the keyword engine reads later.
+   */
+  description: string;
   text:     string;
   /** Which tier produced this — useful for cost tracking and debugging. */
   source:   "direct" | "apify";
@@ -123,7 +130,7 @@ function htmlToText(html: string): string {
  * first. A product's <title> + meta description is usually a better product
  * summary than anything in its body copy.
  */
-function composeContent(html: string): { title: string; text: string } {
+function composeContent(html: string): { title: string; description: string; text: string } {
   const title =
     firstMatch(html, /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
     firstMatch(html, /<title[^>]*>([\s\S]*?)<\/title>/i);
@@ -157,12 +164,25 @@ function composeContent(html: string): { title: string; text: string } {
     deduped.push(line.trim());
   }
 
-  return { title, text: deduped.join("\n").slice(0, MAX_TEXT_LENGTH) };
+  const text = deduped.join("\n").slice(0, MAX_TEXT_LENGTH);
+
+  // What we show the visitor. Prefer the meta description (the product's own
+  // pitch); fall back to the opening lines of the page, which on a marketing
+  // site is usually the hero headline and subhead.
+  const description =
+    metaDescription ||
+    deduped
+      .filter((l) => l.length > 30)
+      .slice(0, 3)
+      .join(" ")
+      .slice(0, 500);
+
+  return { title, description, text };
 }
 
 // ── Tier 1: plain fetch ─────────────────────────────────────────────────────
 
-async function fetchDirect(url: string): Promise<{ title: string; text: string }> {
+async function fetchDirect(url: string): Promise<{ title: string; description: string; text: string }> {
   const res = await request(url, {
     method:              "GET",
     maxRedirections:     5,
@@ -206,7 +226,7 @@ async function fetchDirect(url: string): Promise<{ title: string; text: string }
  * almost always a client-rendered SPA. Runs Apify's website-content-crawler,
  * which executes JS and returns rendered text.
  */
-async function fetchViaApify(url: string): Promise<{ title: string; text: string }> {
+async function fetchViaApify(url: string): Promise<{ title: string; description: string; text: string }> {
   const { ApifyClient } = await import("apify-client");
   const client = new ApifyClient({
     token: env.APIFY_API_KEY,
@@ -225,7 +245,9 @@ async function fetchViaApify(url: string): Promise<{ title: string; text: string
   );
 
   const { items } = await client.dataset(run.defaultDatasetId).listItems({ limit: 1 });
-  const item = items[0] as { text?: string; markdown?: string; metadata?: { title?: string } } | undefined;
+  const item = items[0] as
+    | { text?: string; markdown?: string; metadata?: { title?: string; description?: string } }
+    | undefined;
 
   const text = (item?.text ?? item?.markdown ?? "").slice(0, MAX_TEXT_LENGTH);
   if (!text.trim()) {
@@ -234,7 +256,11 @@ async function fetchViaApify(url: string): Promise<{ title: string; text: string
     throw new WebsiteFetchError("We couldn't read any content from that page.", url);
   }
 
-  return { title: item?.metadata?.title ?? "", text };
+  const description =
+    item?.metadata?.description ??
+    text.split("\n").filter((l) => l.length > 30).slice(0, 3).join(" ").slice(0, 500);
+
+  return { title: item?.metadata?.title ?? "", description, text };
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -281,7 +307,7 @@ export function normaliseUrl(input: string): string {
 export async function extractWebsiteContent(rawUrl: string): Promise<WebsiteContent> {
   const url = normaliseUrl(rawUrl);
 
-  let direct: { title: string; text: string } | null = null;
+  let direct: { title: string; description: string; text: string } | null = null;
   try {
     direct = await fetchDirect(url);
   } catch (err) {
@@ -303,7 +329,7 @@ export async function extractWebsiteContent(rawUrl: string): Promise<WebsiteCont
 
   if (direct && direct.text.length >= THIN_CONTENT_THRESHOLD) {
     log.info({ url, chars: direct.text.length }, "[website] extracted via direct fetch");
-    return { url, title: direct.title, text: direct.text, source: "direct" };
+    return { url, title: direct.title, description: direct.description, text: direct.text, source: "direct" };
   }
 
   log.info(
@@ -316,9 +342,10 @@ export async function extractWebsiteContent(rawUrl: string): Promise<WebsiteCont
     log.info({ url, chars: viaApify.text.length }, "[website] extracted via Apify");
     return {
       url,
-      title:  viaApify.title || direct?.title || "",
-      text:   viaApify.text,
-      source: "apify",
+      title:       viaApify.title || direct?.title || "",
+      description: viaApify.description || direct?.description || "",
+      text:        viaApify.text,
+      source:      "apify",
     };
   } catch (err) {
     // If Apify also failed but the direct fetch got *something*, thin content
@@ -326,7 +353,7 @@ export async function extractWebsiteContent(rawUrl: string): Promise<WebsiteCont
     // meta description.
     if (direct && direct.text.trim().length > 0) {
       log.warn({ url }, "[website] Apify failed — falling back to thin direct content");
-      return { url, title: direct.title, text: direct.text, source: "direct" };
+      return { url, title: direct.title, description: direct.description, text: direct.text, source: "direct" };
     }
     throw err instanceof WebsiteFetchError
       ? err
