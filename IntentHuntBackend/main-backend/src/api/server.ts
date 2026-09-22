@@ -19,6 +19,7 @@ import { profileRoutes } from './routes/profile.routes.js';
 import { gatewayRoutes } from './routes/gateway.routes.js';
 import { billingRoutes } from './routes/billing.routes.js';
 import { contactRoutes } from './routes/contact.routes.js';
+import { trialRoutes } from './routes/trial.routes.js';
 import { prisma } from '../db/prisma.client.js';
 
 async function buildServer() {
@@ -77,6 +78,7 @@ async function buildServer() {
   await app.register(gatewayRoutes, { prefix: '/api/v1/gateway' });
   await app.register(billingRoutes, { prefix: '/api/v1/billing' });
   await app.register(contactRoutes, { prefix: '/api/v1/contact' });
+  await app.register(trialRoutes,   { prefix: '/api/v1/trial' });
 
   return app;
 }

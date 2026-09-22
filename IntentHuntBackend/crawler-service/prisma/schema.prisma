@@ -3,8 +3,13 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Schema pushes/migrations need a non-pooled connection — Supabase's
+  // pgbouncer (transaction mode, on DATABASE_URL) doesn't support the
+  // prepared statements the schema engine issues ("prepared statement
+  // s0 does not exist"). Runtime queries still go through DATABASE_URL.
+  directUrl = env("DIRECT_URL")
 }
 
 // ── Enums ────────────────────────────────────────────────
@@ -152,6 +157,19 @@ model Lead {
   contentFetchedAt      DateTime?        @map("content_fetched_at")
   deepScoredAt          DateTime?        @map("deep_scored_at")
   replyGeneratedAt      DateTime?        @map("reply_generated_at")
+  // Poller claim marker — shared by the process-lead and reply-gen queues
+  // (a lead is only ever a candidate for one of the two at a time, so one
+  // column is enough). Set when a poller picks the row up, checked + reset
+  // via a stale-claim window so a crashed worker doesn't strand it forever.
+  // Prevents two concurrent poller instances from double-fetching /
+  // double-scoring the same lead.
+  claimedAt             DateTime?        @map("claimed_at")
+  // Flips null → now exactly once, via a conditional UPDATE, right before a
+  // process-lead attempt increments SearchRun.processedUrls. Guards that
+  // counter against being bumped more than once for the same lead — which
+  // otherwise happens whenever a poller retry (or a second concurrent
+  // instance) reruns an already-counted lead.
+  processedAt           DateTime?        @map("processed_at")
   // Timing
   createdAt             DateTime         @default(now()) @map("created_at")
   updatedAt             DateTime         @updatedAt @map("updated_at")
@@ -175,4 +193,39 @@ model SeenUrl {
   @@id([url, productId])
   @@index([productId])
   @@map("seen_urls")
+}
+
+/// Homepage trial scans, run before anyone has signed up.
+///
+/// A visitor pastes a product URL and we derive everything from it, so there
+/// is no account to hang this off. The URL itself is the identity key — it
+/// plays the role email plays everywhere else. That also makes this a cache:
+/// the same URL pasted twice returns the existing row instead of re-running
+/// the (paid) pipeline, so cost scales with distinct products rather than
+/// with traffic.
+///
+/// Lifecycle: analyzing → ready (description shown, awaiting their click)
+///            → scanning → scanned. `claimedByUserId` is set at signup, when
+/// the scan is turned into a real Product the user owns.
+model TrialScan {
+  id               String    @id @default(uuid())
+  url              String    @unique
+  extractedText    String?   @map("extracted_text")
+  extractionSource String?   @map("extraction_source")  // "direct" | "apify"
+  productName      String?   @map("product_name")
+  description      String?                              // derived, shown back for review/edit
+  intelligence     Json?                                // ProductIntelligence, same shape as Product
+  queries          Json?
+  status           String    @default("analyzing")      // analyzing | ready | scanning | scanned | failed
+  errorMessage     String?   @map("error_message")
+  productId        String?   @map("product_id") @db.Uuid
+  searchRunId      String?   @map("search_run_id") @db.Uuid
+  claimedByUserId  String?   @map("claimed_by_user_id") @db.Uuid
+  claimedAt        DateTime? @map("claimed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([claimedByUserId])
+  @@map("trial_scans")
 }

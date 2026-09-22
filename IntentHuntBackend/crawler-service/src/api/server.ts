@@ -15,6 +15,7 @@ import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { leadEngineRoutes } from './routes/find-leads.routes.js';
+import { trialRoutes } from './routes/trial.routes.js';
 import { prisma } from '../db/prisma.client.js';
 
 async function buildServer() {
@@ -54,6 +55,7 @@ async function buildServer() {
 
   // ---- Routes ----
   await app.register(leadEngineRoutes, { prefix: '/api/v1' });
+  await app.register(trialRoutes,      { prefix: '/api/v1' });
 
   return app;
 }
