@@ -35,7 +35,11 @@ both. Hence a replica:
 | Service | `DODO_MODE` | Frontend | Dodo product IDs |
 |---|---|---|---|
 | `leadpulse-backend` | `live` | intenthunt.io | live pair |
-| `leadpulse-backend-test` | `test` | test.intenthunt.io | test pair |
+| `leadpulse-backend-test` | `test` | **tst**.intenthunt.io | test pair |
+
+The test domain is `tst.intenthunt.io` — three letters, no `e`. `test.intenthunt.io`
+does not resolve, and pointing the test service's `APP_URL` at it sends anyone
+finishing a test checkout to a dead host.
 
 **The product IDs live in Netlify, not in the backend.** The pricing page reads
 `NEXT_PUBLIC_DODO_PRO_MONTHLY_ID` / `_ANNUAL_ID` and posts whichever it was given
