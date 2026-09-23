@@ -306,12 +306,13 @@ Push to `main` in `IntentHuntFrontEnd`; Netlify builds automatically.
   Decide which is right and make both agree.
 - **`NEXT_PUBLIC_SITE_URL`** must be set in Netlify (+ DNS) for intenthunt.io, or
   SEO metadata falls back to a placeholder.
-- **Prod is still on `DODO_MODE=test`.** `intenthunt.io` is launched and taking
-  signups, but its backend points at Dodo's test environment, so Upgrade charges
-  nobody. Flipping it needs the **live** API key and a live webhook secret from
-  Dodo's live dashboard, set together with the live product IDs in Netlify —
-  changing one without the other breaks checkout. Trusted users are granted plans
-  manually in the DB meanwhile.
+- **Billing is configured but has never processed a payment.** As of 2026-09-23
+  prod runs `DODO_MODE=live` with live keys and the live product IDs in Netlify,
+  test runs `DODO_MODE=test` with the test pair, and both pass health and CORS
+  checks. What has *not* been exercised is an actual purchase: no checkout has
+  been completed in either mode, so the webhook handler, the signature
+  verification and the plan upgrade are all unproven end to end. Until someone
+  buys something, assume the chain is untested rather than working.
 
 ---
 
