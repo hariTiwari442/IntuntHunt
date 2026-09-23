@@ -4,17 +4,23 @@ import { useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { openCheckout } from "@/lib/dodo";
 import { PLAN_FEATURES, type PlanName } from "@/config/plans";
+import { getPendingCheckout, clearPendingCheckout } from "@/lib/pendingCheckout";
 
 /**
  * Resumes a pending checkout intent after signup → verify → login.
  *
  * Flow:
- *   1. User on /pricing clicks "Start free trial" while logged out
+ *   1. User on /pricing clicks Upgrade while logged out
  *   2. They're sent to /auth/signup?plan=pro&billing=annual
- *   3. Signup page stores { plan, billing } in sessionStorage
+ *   3. Signup page stores { plan, billing } via lib/pendingCheckout
  *   4. User verifies email + logs in
- *   5. They land in the dashboard — this component reads sessionStorage
- *      and redirects them to the Dodo hosted-checkout page
+ *   5. /auth/callback lands them here — this component reads the intent
+ *      back and redirects them to the Dodo hosted-checkout page
+ *
+ * Step 3 uses localStorage, NOT sessionStorage. The verification link is
+ * clicked from a mail client, which opens a new tab; sessionStorage is
+ * per-tab, so the intent was always gone by step 5 and the user silently
+ * landed on the dashboard never having been asked to pay.
  *
  * Renders nothing visually.
  */
@@ -27,18 +33,10 @@ export function PendingCheckoutResumer() {
     if (!isAuthenticated) return;
     if (typeof window === "undefined") return;
 
-    const raw = sessionStorage.getItem("pendingCheckout");
-    if (!raw) return;
+    const intent = getPendingCheckout();
+    if (!intent) return;
 
-    let intent: { plan?: string; billing?: string };
-    try {
-      intent = JSON.parse(raw);
-    } catch {
-      sessionStorage.removeItem("pendingCheckout");
-      return;
-    }
-
-    sessionStorage.removeItem("pendingCheckout");
+    clearPendingCheckout();
     handledRef.current = true;
 
     const planName = intent.plan as PlanName | undefined;

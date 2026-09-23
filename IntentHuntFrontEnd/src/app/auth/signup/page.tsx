@@ -8,6 +8,8 @@ import { SocialButtons } from "@/components/auth/SocialButtons";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { setPendingScan } from "@/lib/pendingScan";
+import { setPendingCheckout } from "@/lib/pendingCheckout";
 
 function SignupContent() {
   const [name, setName] = useState("");
@@ -20,19 +22,24 @@ function SignupContent() {
   const searchParams = useSearchParams();
 
   // If user came from /pricing with a plan in mind, stash it so we can
-  // auto-resume checkout after signup/verify/login.
+  // auto-resume checkout after signup/verify/login. Stored in localStorage,
+  // not sessionStorage: the verification link opens in a new tab from the
+  // user's mail client, and a per-tab store is empty by then.
   useEffect(() => {
     const plan    = searchParams.get("plan");
     const billing = searchParams.get("billing");
-    if (plan && billing && typeof window !== "undefined") {
-      sessionStorage.setItem(
-        "pendingCheckout",
-        JSON.stringify({ plan, billing }),
-      );
-    }
+    if (plan && billing) setPendingCheckout({ plan, billing });
   }, [searchParams]);
 
   const planFromUrl = searchParams.get("plan");
+
+  // A homepage trial scan can arrive here as ?scan=<id>. Persist it so it
+  // survives the OAuth round-trip and the email-verification detour — the
+  // dashboard claims it once the user is actually authenticated.
+  const scanFromUrl = searchParams.get("scan");
+  useEffect(() => {
+    if (scanFromUrl) setPendingScan(scanFromUrl);
+  }, [scanFromUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,9 +55,11 @@ function SignupContent() {
     }
   };
 
+  // No trial exists in the billing code — Starter is simply free, so that's
+  // what the page says.
   const subtitle = planFromUrl
-    ? `Start your 14-day free trial — ${planFromUrl.charAt(0).toUpperCase() + planFromUrl.slice(1)} plan`
-    : "Start your 14-day free trial";
+    ? `Create your account — ${planFromUrl.charAt(0).toUpperCase() + planFromUrl.slice(1)} plan`
+    : "Create your account — free, no card needed";
 
   return (
     <AuthLayout title="Create your account" subtitle={subtitle}>
