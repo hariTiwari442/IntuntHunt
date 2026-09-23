@@ -21,10 +21,41 @@ a reply. Users work the results from an inbox.
 
 | Path | What it is | Deploys to |
 |---|---|---|
-| `IntentHuntBackend/main-backend/` | API gateway, auth, billing | Cloud Run `leadpulse-backend` |
+| `IntentHuntBackend/main-backend/` | API gateway, auth, billing | Cloud Run `leadpulse-backend` (prod) + `leadpulse-backend-test` (test) |
 | `IntentHuntBackend/crawler-service/` | Pipeline API **and** worker (one image, two commands) | Cloud Run `leadpulse-crawler-api` + GCE VM `leadpulse-worker` |
 | `IntentHuntBackend/keyword-service/` | **DEAD CODE** — see below | Cloud Run `leadpulse-keyword` (still running, unused) |
 | `IntentHuntFrontEnd/` | Next.js 14 App Router | Netlify, auto-deploy on push to `main` |
+
+### Two main-backends, one per payment mode
+
+`DODO_MODE` is a single env var deciding whether the service talks to
+`live.dodopayments.com` or `test.dodopayments.com`, so one service cannot serve
+both. Hence a replica:
+
+| Service | `DODO_MODE` | Frontend | Dodo product IDs |
+|---|---|---|---|
+| `leadpulse-backend` | `live` | intenthunt.io | live pair |
+| `leadpulse-backend-test` | `test` | test.intenthunt.io | test pair |
+
+**The product IDs live in Netlify, not in the backend.** The pricing page reads
+`NEXT_PUBLIC_DODO_PRO_MONTHLY_ID` / `_ANNUAL_ID` and posts whichever it was given
+to `/billing/checkout`. The backend's `PRODUCT_ID_TO_PLAN` map
+(`services/dodo.client.ts`) holds **both** modes' IDs deliberately, so the same
+image works either way — but all three must agree per environment. A test product
+ID sent to a live-mode backend fails at Dodo with "no such product", surfacing as
+"Couldn't open checkout".
+
+Both replicas share **one database and one worker VM**. That's deliberate: the
+worker polls a single queue, so pointing test at its own DB would leave test scans
+queued forever. The cost is that test scans spend real Serper/ScrapeCreators/
+OpenAI credits and test signups create rows beside real users. Set
+`MOCK_PIPELINE=true` on the test service if that matters.
+
+To clone prod into test after an env change, export and patch rather than
+retyping secrets — but note `gcloud run services replace` needs the Cloud
+Resource Manager API, which is **disabled** on this project. Use
+`gcloud run deploy --image <digest> --env-vars-file` instead, and delete the
+env file afterwards; it contains the database password.
 
 **`keyword-service/` has no caller.** `KEYWORD_SERVICE_URL` appears only as an
 unused default in `main-backend/src/config/env.ts`. It contains an older copy of
@@ -271,8 +302,12 @@ Push to `main` in `IntentHuntFrontEnd`; Netlify builds automatically.
   Decide which is right and make both agree.
 - **`NEXT_PUBLIC_SITE_URL`** must be set in Netlify (+ DNS) for intenthunt.io, or
   SEO metadata falls back to a placeholder.
-- **`DODO_MODE=live`** in both backends — real payments. Trusted users are granted
-  plans manually in the DB rather than routed through checkout.
+- **Prod is still on `DODO_MODE=test`.** `intenthunt.io` is launched and taking
+  signups, but its backend points at Dodo's test environment, so Upgrade charges
+  nobody. Flipping it needs the **live** API key and a live webhook secret from
+  Dodo's live dashboard, set together with the live product IDs in Netlify —
+  changing one without the other breaks checkout. Trusted users are granted plans
+  manually in the DB meanwhile.
 
 ---
 
