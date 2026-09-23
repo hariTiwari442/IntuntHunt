@@ -224,6 +224,25 @@ Push to `main` in `IntentHuntFrontEnd`; Netlify builds automatically.
 
 ---
 
+## Frontend gotchas
+
+- **React hydration strips `data-theme` in production builds, not in dev.**
+  The boot script in `app/layout.tsx` sets it on `<html>` before first paint;
+  `<html>` is an element React renders, so a production hydration removes the
+  attribute because the client render doesn't produce it. `suppressHydration
+  Warning` silences the warning but does NOT prevent the removal. The page
+  then falls through to `prefers-color-scheme` and a saved theme looks
+  ignored. `components/ThemeGuard.tsx` re-applies it on mount — don't remove
+  it. Symptom to recognise: `localStorage.getItem('theme')` returns a value
+  while `document.documentElement.dataset.theme` is `undefined`, on the live
+  site only.
+
+- **The root background is painted inline by the boot script**, because the
+  dark tokens live in an external stylesheet that a hard refresh re-fetches —
+  without it, dark-mode users get a white flash. That means the hex values
+  are duplicated in `layout.tsx` and `ThemeToggle.tsx`; both must stay in step
+  with `--color-bg-primary` in `globals.css`.
+
 ## Known open issues
 
 - **Form submissions notify nobody.** The contact form and the API-access
