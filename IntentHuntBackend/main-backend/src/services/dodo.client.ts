@@ -140,12 +140,33 @@ export interface DodoWebhookEvent {
  *
  * Update both maps when adding plans (e.g. Agency).
  */
+/**
+ * Dodo product ID → the plan it grants.
+ *
+ * BOTH modes are listed deliberately. Dodo issues separate product IDs for
+ * test and live, and the webhook resolves a plan purely by the ID it
+ * receives — so holding both means the same deployment works whichever mode
+ * it's in, and switching DODO_MODE needs no code change.
+ *
+ * It also closes a failure that is invisible until it costs you a customer:
+ * this map previously held only the test IDs while DODO_MODE was "live", so
+ * a real purchase would have arrived with an unrecognised product ID,
+ * resolved to null, and left the customer charged but never upgraded.
+ *
+ * Adding a product in Dodo means adding it here too — an ID that isn't
+ * listed cannot be mapped to a plan.
+ */
 const PRODUCT_ID_TO_PLAN: Record<
   string,
   { plan: string; interval: "month" | "year" }
 > = {
+  // ── live ──────────────────────────────────────────────────────────
+  pdt_0NgLr1p6iZKRMICDirDDr: { plan: "pro", interval: "month" },
+  pdt_0NgLrqXyQtpu4b1lQ30Kh: { plan: "pro", interval: "year"  },
+
+  // ── test ──────────────────────────────────────────────────────────
   pdt_0NgLzVbxB6s3dU7WyEDiX: { plan: "pro", interval: "month" },
-  pdt_0NgLzf7chRWeIND4W7wlC: { plan: "pro", interval: "year" },
+  pdt_0NgLzf7chRWeIND4W7wlC: { plan: "pro", interval: "year"  },
 };
 
 export function planFromProductId(
