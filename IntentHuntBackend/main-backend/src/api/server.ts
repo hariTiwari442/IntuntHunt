@@ -44,8 +44,13 @@ async function buildServer() {
     ? [
         env.APP_URL,                              // e.g. https://intenthunt.netlify.app
         'https://intenthunt.io',                  // production custom domain
-        'https://www.intenthunt.io',
-        /\.netlify\.app$/,                        // any Netlify preview URL
+        // Any subdomain of intenthunt.io — test.intenthunt.io, www, and
+        // whatever comes next. Previously only the apex and www were listed
+        // by name, so a new subdomain was blocked by CORS with no clue why:
+        // the browser reports it as a network failure, not a config problem.
+        // Anchored on both ends so it can't match intenthunt.io.evil.com.
+        /^https:\/\/[a-z0-9-]+\.intenthunt\.io$/,
+        /^https:\/\/[a-z0-9-]+\.netlify\.app$/, // Netlify previews + branch deploys
       ]
     : true as unknown as (string | RegExp)[];     // dev: reflect any origin
 
