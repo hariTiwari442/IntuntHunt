@@ -5,14 +5,14 @@ changes nothing.** Edit the real files listed under each heading.
 
 Placeholders like `${intelligence.pains}` are filled in at runtime.
 
-| # | Stage | Source | Model | Temp |
-|---|-------|--------|-------|------|
-| 1 | Keyword engine | `src/pipeline/step1-keyword-engine.ts` | gpt-4o | 0.4 |
-| 2 | Google search (Serper) | — no AI — | — | — |
-| 3 | Pre-score | `src/pipeline/step3-pre-score.ts` | gpt-4o-mini | 0.3 |
-| 4 | Content fetch (ScrapeCreators) | — no AI — | — | — |
-| 5 | Deep score | `src/pipeline/step4-5-process-lead.ts` | gpt-4o-mini | 0.3 |
-| 6 | Reply generation | `src/pipeline/step6-reply-gen.ts` | gpt-4o | 0.7 |
+| #   | Stage                          | Source                                 | Model       | Temp |
+| --- | ------------------------------ | -------------------------------------- | ----------- | ---- |
+| 1   | Keyword engine                 | `src/pipeline/step1-keyword-engine.ts` | gpt-4o      | 0.4  |
+| 2   | Google search (Serper)         | — no AI —                              | —           | —    |
+| 3   | Pre-score                      | `src/pipeline/step3-pre-score.ts`      | gpt-4o-mini | 0.3  |
+| 4   | Content fetch (ScrapeCreators) | — no AI —                              | —           | —    |
+| 5   | Deep score                     | `src/pipeline/step4-5-process-lead.ts` | gpt-4o-mini | 0.3  |
+| 6   | Reply generation               | `src/pipeline/step6-reply-gen.ts`      | gpt-4o      | 0.7  |
 
 Models are set in `src/lib/openai.ts`.
 
