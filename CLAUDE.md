@@ -306,13 +306,21 @@ Push to `main` in `IntentHuntFrontEnd`; Netlify builds automatically.
   Decide which is right and make both agree.
 - **`NEXT_PUBLIC_SITE_URL`** must be set in Netlify (+ DNS) for intenthunt.io, or
   SEO metadata falls back to a placeholder.
-- **Billing is configured but has never processed a payment.** As of 2026-09-23
-  prod runs `DODO_MODE=live` with live keys and the live product IDs in Netlify,
-  test runs `DODO_MODE=test` with the test pair, and both pass health and CORS
-  checks. What has *not* been exercised is an actual purchase: no checkout has
-  been completed in either mode, so the webhook handler, the signature
-  verification and the plan upgrade are all unproven end to end. Until someone
-  buys something, assume the chain is untested rather than working.
+- **Billing works in test mode; live mode is configured but unexercised.**
+  On 2026-09-24 a test-card annual purchase on `tst.intenthunt.io` completed
+  and wrote `plan=pro`, `billingInterval=year`, both Dodo IDs and a
+  `currentPeriodEnd` exactly a year out. That proves checkout, webhook
+  delivery, signature verification, the `PRODUCT_ID_TO_PLAN` lookup and the
+  profile update — the whole chain, minus the live keys.
+
+  Prod runs `DODO_MODE=live` with live keys and the live product IDs, verified
+  by inspection only. No real payment has been taken.
+
+  **Resetting a profile for a re-test must also null `dodoCustomerId` and
+  `dodoSubscriptionId`** — both are `@unique`, so leaving a stale id behind
+  collides on the next purchase. Note the subscription still exists on Dodo's
+  side after a DB reset: cancel it there too, or its renewal webhooks arrive
+  later carrying a subscription id no profile owns.
 
 ---
 
