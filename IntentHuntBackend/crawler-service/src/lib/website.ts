@@ -110,9 +110,18 @@ function firstMatch(html: string, re: RegExp): string {
 /** Strip tags and collapse whitespace, after removing non-content elements entirely. */
 function htmlToText(html: string): string {
   return html
+    // <noscript> is UNWRAPPED — its tags go, its contents stay. A
+    // client-rendered marketing site puts its entire crawler-readable copy in
+    // there, so dropping it whole left us with navigation labels:
+    // autocardai.app yielded 336 characters of "Features / How it works / FAQ"
+    // while 2,355 characters of real product copy sat inside one noscript
+    // block. That also defeated the thin-content check — 336 clears the 300
+    // threshold, so we never fell back and never noticed. Tracking pixels
+    // inside noscript are iframes, still dropped on the next line.
+    .replace(/<\/?noscript\b[^>]*>/gi, " ")
     // Drop these including their contents — none of it is page copy, and
     // inline JSON-LD/script blobs would otherwise dominate the output.
-    .replace(/<(script|style|noscript|svg|iframe|template)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<(script|style|svg|iframe|template)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
     // Block-level boundaries become newlines so sentences don't run together.
     .replace(/<\/(p|div|section|article|h[1-6]|li|tr|br)>/gi, "\n")
