@@ -238,13 +238,7 @@ export async function trialRoutes(app: FastifyInstance): Promise<void> {
       const product = await prisma.product.create({
         data: {
           userId:       ownerId,
-          // The page's own title wins over the model's guess. A meta
-          // description often never states the product's name, so the engine
-          // infers one — autocardai.app, whose og:title is plainly
-          // "CardSnap — AI Business Card Scanner", has been running as
-          // "Scan any business" because the inferred name took precedence.
-          // The title is what the product calls itself; the guess is a guess.
-          name:         scan.productName || intelligence.productName || "Untitled",
+          name:         intelligence.productName || scan.productName || "Untitled",
           description:  finalDescription,
           productUrl:   scan.url,
           intelligence: intelligence as unknown as object,
