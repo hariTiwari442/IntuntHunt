@@ -279,9 +279,15 @@ Return JSON:
  *   - IntentHuntFrontEnd src/config/leads.ts   (what the UI shows and labels)
  * Change one, change all three — a mismatch means a product card and the
  * inbox it links to report different numbers for the same thing.
+ *
+ * HOT_LEAD_SCORE is exported so other routes *within this deployable* (e.g.
+ * find-leads.routes.ts's plan-gating counts) import it instead of writing a
+ * fourth "80" — that drift already happened once between the deploys above.
  */
+export const HOT_LEAD_SCORE = 80;
+
 function leadTypeFromScore(score: number): LeadType {
-  if (score >= 80) return "hot";
+  if (score >= HOT_LEAD_SCORE) return "hot";
   if (score >= 60) return "warm";
   if (score >= 40) return "possible";
   if (score >= 20) return "unlikely";

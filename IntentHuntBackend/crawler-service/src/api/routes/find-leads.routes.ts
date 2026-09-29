@@ -17,6 +17,7 @@ import { prisma } from "../../db/prisma.client.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { searchRunRepository } from "../../db/repositories/search-run.repository.js";
 import { leadRepository } from "../../db/repositories/lead.repository.js";
+import { HOT_LEAD_SCORE } from "../../pipeline/step4-5-process-lead.js";
 import {
   NotFoundError,
   ForbiddenError,
@@ -246,7 +247,16 @@ export async function leadEngineRoutes(app: FastifyInstance): Promise<void> {
     const effectiveLimit =
       query.visibleLeads != null ? Math.min(query.limit, query.visibleLeads) : query.limit;
 
-    const [leads, total, visibleTotal, lockedByPlatform] = await Promise.all([
+    // The gating math answers "what would an upgrade actually reveal", so it
+    // has to count against the same bar the inbox shows leads at — anything
+    // below HOT_LEAD_SCORE would never appear there regardless of plan. Kept
+    // separate from `where`/`visibleWhere` above: those still back the
+    // pagination-facing `total` and the returned `leads` page, neither of
+    // which filters by score today, and this must not change that.
+    const hotWhere        = { ...where,        intentScore: { gte: HOT_LEAD_SCORE } };
+    const hotVisibleWhere = { ...visibleWhere, intentScore: { gte: HOT_LEAD_SCORE } };
+
+    const [leads, total, visibleTotal, hotTotal, hotVisibleTotal, lockedByPlatform] = await Promise.all([
       prisma.lead.findMany({
         where: visibleWhere,
         orderBy: [
@@ -257,11 +267,15 @@ export async function leadEngineRoutes(app: FastifyInstance): Promise<void> {
       }),
       prisma.lead.count({ where }),
       prisma.lead.count({ where: visibleWhere }),
+      prisma.lead.count({ where: hotWhere }),
+      prisma.lead.count({ where: hotVisibleWhere }),
       // Count what's hidden, grouped by platform, so the upgrade prompt can
-      // name the sources rather than just a total.
+      // name the sources rather than just a total. Hot-only for the same
+      // reason as above — a locked LinkedIn lead scoring 45 isn't something
+      // upgrading would surface either.
       prisma.lead.groupBy({
         by:    ["platform"],
-        where,
+        where: hotWhere,
         _count: { _all: true },
       }),
     ]);
@@ -273,8 +287,13 @@ export async function leadEngineRoutes(app: FastifyInstance): Promise<void> {
           .filter((g) => g.count > 0)
       : [];
 
-    // Withheld = platforms this plan can't see, plus anything cut by the cap.
-    const lockedCount = Math.max(0, total - Math.min(visibleTotal, effectiveLimit));
+    // Withheld = HOT platforms this plan can't see, plus hot leads cut by the
+    // cap. Built from hotTotal/hotVisibleTotal, not total/visibleTotal — this
+    // used to count every scored lead regardless of score, so a product with
+    // real leads only in the 60s told a Starter user "53 more leads found"
+    // when unlocking would have shown an inbox with nothing in it (the inbox
+    // itself only ever shows HOT_LEAD_SCORE and above). Same bar, both ends.
+    const lockedCount = Math.max(0, hotTotal - Math.min(hotVisibleTotal, effectiveLimit));
 
     reply.send({
       // Plan-gating metadata: what's being withheld and why. Null limits mean
