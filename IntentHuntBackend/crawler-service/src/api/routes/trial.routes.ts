@@ -203,11 +203,80 @@ export async function trialRoutes(app: FastifyInstance): Promise<void> {
       return;
     }
 
-    // Already running or done — hand back the existing run rather than
-    // paying for a second one. Covers double-clicks and page refreshes.
-    if (scan.searchRunId) {
+    // Whether a fresh run is warranted even though this URL was already
+    // scanned. Two independent triggers, either is sufficient:
+    //   - the visitor deliberately edited the description
+    //   - the last completed run is old enough that Reddit/LinkedIn may hold
+    //     new posts now
+    // Without this, a URL that happened to score badly on its first-ever
+    // scan stayed frozen at that verdict forever — 2 days later, 2 months
+    // later, no different — and worse, a real future visitor pasting a
+    // product's own URL could land on a verdict shaped entirely by an
+    // internal test run's description, with no way to ever get a fresh one.
+    const STALE_AFTER_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+
+    // Collapse incidental whitespace differences (an extra space, a stray
+    // line break from a paste) so only an actual wording change counts —
+    // comparison is exact after this, which is deliberate: any real edit,
+    // however small, was a deliberate keystroke from the visitor, not noise
+    // introduced by storage or by redisplaying the value in a textarea.
+    const normalize = (s: string) => s.trim().replace(/\s+/g, " ");
+
+    // Once claimed, this product is a real signed-up user's — claim.ts
+    // reassigns products.userId to them. This endpoint is unauthenticated, so
+    // without this guard a stranger re-pasting the same URL on the homepage
+    // could silently rewrite a paying user's live product description and
+    // intelligence. After claiming, a re-scan only ever happens through the
+    // authenticated dashboard's own Find Leads, never from here — so a
+    // claimed scan always returns whatever it already has, with neither
+    // trigger below able to touch it.
+    const eligibleForRescan = scan.searchRunId && !scan.claimedByUserId;
+
+    if (scan.searchRunId && !eligibleForRescan) {
       reply.status(202).send({ ...present(scan), searchRunId: scan.searchRunId });
       return;
+    }
+
+    if (eligibleForRescan) {
+      const run = await prisma.searchRun.findUnique({
+        where:  { id: scan.searchRunId! },
+        select: { status: true, completedAt: true },
+      });
+
+      // A run still in flight is never bypassed, regardless of the two
+      // triggers below — starting a second run for the same product while
+      // one is already pending/running would double-pay for the same scan
+      // and race the orchestrator. Also covers a dangling FK (run === null)
+      // by falling through to the same "no run to reuse" behavior as a
+      // fresh scan.
+      const inFlight = run?.status === "pending" || run?.status === "running";
+
+      if (inFlight) {
+        reply.status(202).send({ ...present(scan), searchRunId: scan.searchRunId });
+        return;
+      }
+
+      const descriptionChanged =
+        description !== undefined &&
+        normalize(description) !== normalize(scan.description ?? "");
+
+      const isStale =
+        run?.completedAt != null &&
+        Date.now() - run.completedAt.getTime() > STALE_AFTER_MS;
+
+      // A run that failed outright never earns a permanent "no results" —
+      // always eligible for a retry, independent of the two triggers.
+      const failedRun = run?.status === "failed";
+
+      if (run && !descriptionChanged && !isStale && !failedRun) {
+        reply.status(202).send({ ...present(scan), searchRunId: scan.searchRunId });
+        return;
+      }
+
+      log.info(
+        { scanId: scan.id, descriptionChanged, isStale, failedRun },
+        "[trial] re-scanning a previously scanned URL",
+      );
     }
 
     // The visitor's correction wins over what we scraped.
@@ -235,17 +304,34 @@ export async function trialRoutes(app: FastifyInstance): Promise<void> {
       // leads follow automatically since they hang off the product.
       const ownerId = await ensureTrialOwner();
 
-      const product = await prisma.product.create({
-        data: {
-          userId:       ownerId,
-          name:         intelligence.productName || scan.productName || "Untitled",
-          description:  finalDescription,
-          productUrl:   scan.url,
-          intelligence: intelligence as unknown as object,
-          queries:      queries as unknown as object,
-          subreddits:   Object.keys(queries.redditSubreddit ?? {}),
-        },
-      });
+      // A re-scan (staleness or an edited description — see the gating
+      // above) already has a product for this URL, unclaimed by anyone.
+      // Update it in place rather than creating a second Product row: this
+      // URL is one entity, and a fresh row every re-scan would orphan the
+      // old one and split its lead history across two products for no
+      // reason. A first-ever scan has no productId yet, so it still creates.
+      const product = scan.productId
+        ? await prisma.product.update({
+            where: { id: scan.productId },
+            data: {
+              name:         intelligence.productName || scan.productName || "Untitled",
+              description:  finalDescription,
+              intelligence: intelligence as unknown as object,
+              queries:      queries as unknown as object,
+              subreddits:   Object.keys(queries.redditSubreddit ?? {}),
+            },
+          })
+        : await prisma.product.create({
+            data: {
+              userId:       ownerId,
+              name:         intelligence.productName || scan.productName || "Untitled",
+              description:  finalDescription,
+              productUrl:   scan.url,
+              intelligence: intelligence as unknown as object,
+              queries:      queries as unknown as object,
+              subreddits:   Object.keys(queries.redditSubreddit ?? {}),
+            },
+          });
 
       // Local UI testing: complete the run immediately with fixture leads.
       // Deliberately does NOT enqueue anything — the queue is the shared
