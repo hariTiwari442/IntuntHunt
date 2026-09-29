@@ -201,11 +201,38 @@ export async function leadEngineRoutes(app: FastifyInstance): Promise<void> {
     "/products/:productId/cleanup",
     async (request, reply) => {
       const { productId } = request.params;
-      // Delete leads + search runs + seen urls for this product
+
+      // A product that started life as a homepage trial has a trial_scans
+      // row pointing at it (productId, searchRunId) and possibly claimed by
+      // whoever signed up. Deleting the product without touching that row
+      // left it a permanent zombie: claimed, so the trial re-scan logic in
+      // trial.routes.ts refuses to ever touch it again, yet pointing at
+      // leads/a search run that this very transaction is about to delete.
+      // Concretely this happened to autocardai.app — its trial scan kept
+      // serving 7 leads and a search run that belonged to a product deleted
+      // days earlier, because nothing had ever told it to let go.
+      //
+      // Reset rather than delete the trial_scans row: the page extraction
+      // (description/extractedText) it holds is unrelated to this product's
+      // lifecycle and still perfectly valid, so there's no reason to throw
+      // it away and pay for a re-fetch. Clearing productId/searchRunId/claim
+      // and returning it to "ready" makes the URL immediately re-scannable —
+      // the next Find Leads click on it takes the ordinary first-scan path.
       await prisma.$transaction([
         prisma.lead.deleteMany({ where: { productId } }),
         prisma.searchRun.deleteMany({ where: { productId } }),
         prisma.seenUrl.deleteMany({ where: { productId } }),
+        prisma.trialScan.updateMany({
+          where: { productId },
+          data: {
+            productId:       null,
+            searchRunId:     null,
+            claimedByUserId: null,
+            claimedAt:       null,
+            status:          "ready",
+            errorMessage:    null,
+          },
+        }),
       ]);
       reply.send({ ok: true });
     },
