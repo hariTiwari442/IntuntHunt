@@ -286,8 +286,22 @@ async function fetchViaApify(url: string): Promise<{ title: string; description:
     throw new WebsiteFetchError("We couldn't read any content from that page.", url);
   }
 
+  // Same guard as composeContent() below, and for the same reason it was
+  // needed there: Apify's own metadata.description is just its read of this
+  // page's <meta name="description"> tag — the identical boilerplate, from
+  // a second independent source, that composeContent()'s check never sees
+  // because this function doesn't call composeContent() at all. Awako.ai
+  // hits exactly this path (its direct-fetch extracted text is thin enough
+  // to trigger the Apify fallback), which is why fixing composeContent()
+  // alone didn't fix it — confirmed live, same boilerplate text returned
+  // after that first deploy.
+  const apifyMetaDescription =
+    item?.metadata?.description && !isBoilerplateDescription(item.metadata.description)
+      ? item.metadata.description
+      : null;
+
   const description =
-    item?.metadata?.description ??
+    apifyMetaDescription ??
     text.split("\n").filter((l) => l.length > 30).slice(0, 3).join(" ").slice(0, 500);
 
   return { title: item?.metadata?.title ?? "", description, text };
