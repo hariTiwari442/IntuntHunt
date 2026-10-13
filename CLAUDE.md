@@ -191,11 +191,33 @@ Project `aristotle-452112`, region `asia-south2`.
 
 ### Backend (Cloud Run)
 
-From `IntentHuntBackend/main-backend/`:
+All four as `gcloud run deploy <service> --source . --region asia-south2 --project aristotle-452112`
+— the only thing that changes per service is the service name and which
+directory you run it from. **A `--source` redeploy preserves the existing
+revision's env vars automatically** — you're only shipping a new container
+image, not resetting config. To actually change an env var, that's a
+separate command (`--update-env-vars KEY=value,...`), not a side effect of
+redeploying.
+
+| Service | Run from | Notes |
+|---|---|---|
+| `leadpulse-backend` | `main-backend/` | Prod. `DODO_MODE=live`. |
+| `leadpulse-backend-test` | `main-backend/` | Test replica. `DODO_MODE=test`. Same image as prod, different env. |
+| `leadpulse-crawler-api` | `crawler-service/` | **The one you'll redeploy most** — every pipeline/trial/extraction fix lands here. Shared by both frontend environments; there is no separate test copy of this one. |
+| `leadpulse-keyword` | `keyword-service/` | Dead code (§ above) — you should never need to deploy this. |
+
+Example, for the one you'll actually use most:
 
 ```
-gcloud run deploy leadpulse-backend --source . --region asia-south2 --project aristotle-452112
+cd IntentHuntBackend/crawler-service
+gcloud run deploy leadpulse-crawler-api --source . --region asia-south2 --project aristotle-452112
 ```
+
+Deploying `leadpulse-crawler-api` does **not** touch the worker VM — they
+run the same image but the VM doesn't auto-update when a new image is
+built (see below). A route-only change (an API handler, not pipeline/
+scoring logic the worker executes) only needs this command; a pipeline/
+worker-logic change needs the worker rebuilt and restarted too.
 
 ### Worker (GCE VM `leadpulse-worker`)
 
