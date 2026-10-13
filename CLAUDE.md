@@ -181,36 +181,61 @@ prompt and **the two silently drifted apart**. Do not reintroduce a second copy.
 
 ### `gcloud` is not on PATH (Windows)
 
+The full path, every time:
+
 ```
-& "C:\Users\Hari\AppData\Local\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd" ...
+C:\Users\Hari\AppData\Local\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd
 ```
 
-A bare `gcloud` fails with `CommandNotFoundException` every time.
+A bare `gcloud` fails with `CommandNotFoundException`. **Which shell you're
+in changes the syntax, not just the path** — this has cost real time before:
+
+- **Command Prompt (cmd.exe)**: use the quoted path directly, no leading `&`.
+  `&` in cmd.exe is a command separator, not a call operator — putting one
+  in front either errors or silently does the wrong thing.
+- **PowerShell**: needs the `&` call operator in front, or a bare quoted
+  path is treated as a string, not executed.
 
 Project `aristotle-452112`, region `asia-south2`.
 
-### Backend (Cloud Run)
+### Backend (Cloud Run) — full copy-pasteable commands
 
-All four as `gcloud run deploy <service> --source . --region asia-south2 --project aristotle-452112`
-— the only thing that changes per service is the service name and which
-directory you run it from. **A `--source` redeploy preserves the existing
-revision's env vars automatically** — you're only shipping a new container
-image, not resetting config. To actually change an env var, that's a
-separate command (`--update-env-vars KEY=value,...`), not a side effect of
-redeploying.
+Same shape for all three real services (`leadpulse-keyword` is dead code,
+§ above — never deploy it): `cd` into the right folder, then run
+`gcloud run deploy <service> --source . --region asia-south2 --project aristotle-452112`.
+**A `--source` redeploy preserves the existing revision's env vars** — it
+only ships a new container image. Changing an env var is a separate
+`--update-env-vars KEY=value,...` command, not a side effect of redeploying.
 
 | Service | Run from | Notes |
 |---|---|---|
 | `leadpulse-backend` | `main-backend/` | Prod. `DODO_MODE=live`. |
 | `leadpulse-backend-test` | `main-backend/` | Test replica. `DODO_MODE=test`. Same image as prod, different env. |
 | `leadpulse-crawler-api` | `crawler-service/` | **The one you'll redeploy most** — every pipeline/trial/extraction fix lands here. Shared by both frontend environments; there is no separate test copy of this one. |
-| `leadpulse-keyword` | `keyword-service/` | Dead code (§ above) — you should never need to deploy this. |
 
-Example, for the one you'll actually use most:
+**Command Prompt** — the one you'll use most:
 
+```cmd
+cd /d C:\Users\Hari\Desktop\IntentHunt\IntentHuntBackend\crawler-service
+"C:\Users\Hari\AppData\Local\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd" run deploy leadpulse-crawler-api --source . --region asia-south2 --project aristotle-452112
 ```
-cd IntentHuntBackend/crawler-service
-gcloud run deploy leadpulse-crawler-api --source . --region asia-south2 --project aristotle-452112
+
+```cmd
+cd /d C:\Users\Hari\Desktop\IntentHunt\IntentHuntBackend\main-backend
+"C:\Users\Hari\AppData\Local\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd" run deploy leadpulse-backend --source . --region asia-south2 --project aristotle-452112
+```
+
+```cmd
+cd /d C:\Users\Hari\Desktop\IntentHunt\IntentHuntBackend\main-backend
+"C:\Users\Hari\AppData\Local\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd" run deploy leadpulse-backend-test --source . --region asia-south2 --project aristotle-452112
+```
+
+**PowerShell** — same three, with `cd` (no `/d`) and `&` in front of the
+quoted path:
+
+```powershell
+cd C:\Users\Hari\Desktop\IntentHunt\IntentHuntBackend\crawler-service
+& "C:\Users\Hari\AppData\Local\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd" run deploy leadpulse-crawler-api --source . --region asia-south2 --project aristotle-452112
 ```
 
 Deploying `leadpulse-crawler-api` does **not** touch the worker VM — they
@@ -221,13 +246,15 @@ worker-logic change needs the worker rebuilt and restarted too.
 
 ### Worker (GCE VM `leadpulse-worker`)
 
-Build from `IntentHuntBackend/crawler-service/`:
+Build from `IntentHuntBackend/crawler-service/` — full command, Command
+Prompt:
 
+```cmd
+cd /d C:\Users\Hari\Desktop\IntentHunt\IntentHuntBackend\crawler-service
+"C:\Users\Hari\AppData\Local\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd" builds submit --tag asia-south2-docker.pkg.dev/aristotle-452112/cloud-run-source-deploy/leadpulse-crawler-worker:latest --project aristotle-452112 --region asia-south2 .
 ```
-gcloud builds submit \
-  --tag asia-south2-docker.pkg.dev/aristotle-452112/cloud-run-source-deploy/leadpulse-crawler-worker:latest \
-  --project aristotle-452112 --region asia-south2 .
-```
+
+PowerShell: same, but `cd` without `/d` and `&` in front of the quoted path.
 
 Then SSH to the VM (browser SSH is fine) and restart the container.
 
