@@ -162,6 +162,18 @@ prompt and **the two silently drifted apart**. Do not reintroduce a second copy.
   stays at `intentScore: 0` — invisible, not a false positive. Before 2026-09-15
   the pipeline scored from snippets *by design*, which produced a batch of badly
   wrong 85-HOT vendor ads; those have been re-scored.
+- **A page's own meta description can be framework boilerplate the developer
+  never replaced**, and it will confidently become "the product description"
+  unless caught. Found via `awako.ai`, a create-react-app site whose meta
+  description was literally "Web site created using create-react-app" — this
+  bit extraction *twice* in one fix, because Apify's `metadata.description`
+  (used on the thin-content fallback path) is a second, independent read of
+  the same tag that doesn't go through `composeContent()`'s check at all.
+  `isBoilerplateDescription()` in `crawler-service/src/lib/website.ts`
+  blocklists known scaffolding defaults, same convention as
+  `BANNED_QUERY_PREFIXES` — **extend it the next time a different
+  framework's placeholder shows up**; this is a class of bug, not a
+  one-site fix, and only two frameworks' defaults are blocklisted so far.
 
 ---
 
@@ -278,6 +290,48 @@ Push to `main` in `IntentHuntFrontEnd`; Netlify builds automatically.
   are duplicated in `layout.tsx` and `ThemeToggle.tsx`; both must stay in step
   with `--color-bg-primary` in `globals.css`.
 
+- **The logo is one component, not an image file.** `components/Logo.tsx`
+  (gradient square + Lucide `Zap`, `size` prop in px) is used everywhere the
+  mark appears in-app — it used to be hand-copied into 13 separate files,
+  which had already drifted once (two identically-sized instances using
+  different corner radii). The favicon / apple-icon / OG-image routes can't
+  use it — they render via `next/og`'s Satori, which needs inline styles
+  and has no viewer theme — but they read the same gradient/shape constants
+  from `config/brand.ts`, so there's still one place holding the actual
+  design values. Change the logo in both places; change a color only in
+  `brand.ts`.
+
+## SEO
+
+Confirmed working end to end as of 2026-10-01 — not just configured.
+`intenthunt.io` is verified in Google Search Console (DNS TXT, Domain
+property — covers `tst.intenthunt.io` under the same verification), its
+sitemap is submitted and was fetched successfully, and indexing was
+requested on `/`, `/pricing`, `/features`.
+
+- **`isProductionSite`** (`IntentHuntFrontEnd/src/config/site.ts`) — true
+  only when `NEXT_PUBLIC_SITE_URL` is exactly `https://intenthunt.io`.
+  Gates both `app/layout.tsx`'s `robots` meta and `app/robots.ts`: anything
+  that isn't the real prod domain gets a blanket `noindex, nofollow` +
+  `Disallow: /`. This exists because `tst.intenthunt.io` was found fully
+  indexable (`Allow: /`, `index, follow`) — a staging site with nothing
+  stopping it from being crawled and ranking alongside, or instead of, prod.
+  A future preview/staging domain is noindexed by default under this, not
+  by someone remembering to set a flag.
+- **Every page needs its own `openGraph` *and* `twitter` metadata block.**
+  Next merges metadata from the parent down — a page with neither inherits
+  the *entire* root layout block, `og:url` included, so a shared link to
+  `/features` showed the homepage's title/description/url before this was
+  caught. `twitter` doesn't inherit from `openGraph`; it's a separate key,
+  so both have to be set even when they're identical.
+- `app/sitemap.ts` lists every real page by hand — a page that exists but
+  isn't in that array gets no sitemap signal regardless of how good its
+  content is. Add new public pages there.
+- No blog or content-marketing section exists. Everything else here makes
+  the site crawlable and indexable; it doesn't give Google much to rank
+  highly for competitive terms, which needs real content over time, not a
+  code fix.
+
 ## Known open issues
 
 - **Form submissions notify nobody.** The contact form and the API-access
@@ -304,21 +358,25 @@ Push to `main` in `IntentHuntFrontEnd`; Netlify builds automatically.
   but `main-backend`'s `plan-enforcement.ts` has
   `starter: { productsPerMonth: 1 }`. A starter user is told 3 and blocked at 1.
   Decide which is right and make both agree.
-- **`NEXT_PUBLIC_SITE_URL`** must be set in Netlify (+ DNS) for intenthunt.io, or
-  SEO metadata falls back to a placeholder.
-- **Billing works in test mode; live mode is configured but unexercised.**
-  On 2026-09-24 a test-card annual purchase on `tst.intenthunt.io` completed
-  and wrote `plan=pro`, `billingInterval=year`, both Dodo IDs and a
-  `currentPeriodEnd` exactly a year out. That proves checkout, webhook
-  delivery, signature verification, the `PRODUCT_ID_TO_PLAN` lookup and the
-  profile update — the whole chain, minus the live keys.
+- **Billing: prod is live and has taken at least one real payment.**
+  `leadpulse-backend` runs `DODO_MODE=live` (confirmed 2026-10-13, not just
+  configured). `haritiwari442@gmail.com` carries a real Dodo customer +
+  subscription (`cus_0NgMcaz8g8mpEjgCHIbBJ` / a `sub_...` id,
+  `currentPeriodEnd` ≈ 2027-09-26) — found by direct inspection, not by
+  anyone saying "I flipped it and bought it" in a logged session, so nobody
+  has independently re-verified the live webhook path the way test mode was
+  verified on 2026-09-24 (checkout → webhook → signature → plan update, all
+  confirmed working in test mode that day). Treat live as "apparently
+  working, inferred from the data" rather than "verified."
 
-  Prod runs `DODO_MODE=live` with live keys and the live product IDs, verified
-  by inspection only. No real payment has been taken.
+  **If that subscription on `haritiwari442@gmail.com` was a real-money test
+  of the live flow rather than an intentional purchase, it will auto-renew
+  ~2027-09-26 unless cancelled in Dodo's live dashboard** — worth checking
+  before that date regardless of how this memory ages.
 
   **Resetting a profile for a re-test must also null `dodoCustomerId` and
   `dodoSubscriptionId`** — both are `@unique`, so leaving a stale id behind
-  collides on the next purchase. Note the subscription still exists on Dodo's
+  collides on the next purchase. The subscription still exists on Dodo's
   side after a DB reset: cancel it there too, or its renewal webhooks arrive
   later carrying a subscription id no profile owns.
 
